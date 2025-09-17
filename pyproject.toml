@@ -24,3 +24,10 @@ dev = [
     "ruff (>=0.13.0,<0.14.0)",
     "pyright (>=1.1.405,<2.0.0)"
 ]
+
+[tool.pyright]
+typeCheckingMode = "basic"
+reportMissingParameterType = "error"
+reportMissingReturnType = "warning"
+reportUnusedImport = "warning"
+reportUnusedVariable = "warning"

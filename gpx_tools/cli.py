@@ -2,30 +2,16 @@ import argparse
 import sys
 from pathlib import Path
 from .parser import GPXParser
+from .formatting import (
+    format_distance,
+    format_time,
+    format_speed,
+    format_elevation,
+    format_datetime,
+)
 
 
-def format_distance(distance_meters: float) -> str:
-    if distance_meters >= 1000:
-        return f"{distance_meters / 1000:.2f} km"
-    return f"{distance_meters:.1f} m"
-
-
-def format_time(seconds: float) -> str:
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = int(seconds % 60)
-
-    if hours > 0:
-        return f"{hours}:{minutes:02d}:{secs:02d}"
-    return f"{minutes}:{secs:02d}"
-
-
-def format_speed(speed_mps: float) -> str:
-    kmh = speed_mps * 3.6
-    return f"{kmh:.1f} km/h"
-
-
-def parse_command(args):
+def parse_command(args: argparse.Namespace) -> None:
     parser = GPXParser(args.file)
 
     try:
@@ -50,26 +36,28 @@ def parse_command(args):
             print(f"Max Speed: {format_speed(stats.max_speed)}")
 
         if stats.max_elevation is not None and stats.min_elevation is not None:
-            print(f"Elevation: {stats.min_elevation:.0f}m - {stats.max_elevation:.0f}m")
+            print(
+                f"Elevation: {format_elevation(stats.min_elevation)} - {format_elevation(stats.max_elevation)}"
+            )
 
         if stats.total_uphill:
-            print(f"Uphill: {stats.total_uphill:.0f}m")
+            print(f"Uphill: {format_elevation(stats.total_uphill)}")
 
         if stats.total_downhill:
-            print(f"Downhill: {stats.total_downhill:.0f}m")
+            print(f"Downhill: {format_elevation(stats.total_downhill)}")
 
         if stats.start_time:
-            print(f"Start: {stats.start_time}")
+            print(f"Start: {format_datetime(stats.start_time)}")
 
         if stats.end_time:
-            print(f"End: {stats.end_time}")
+            print(f"End: {format_datetime(stats.end_time)}")
 
     except Exception as e:
         print(f"Error parsing GPX file: {e}", file=sys.stderr)
         sys.exit(1)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="GPX file tools")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
