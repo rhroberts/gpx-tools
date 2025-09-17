@@ -1,36 +1,15 @@
 from datetime import datetime
-from typing import Optional
-from zoneinfo import ZoneInfo
-from .constants import METERS_TO_FEET, METERS_TO_MILES, MPS_TO_MPH
+from typing import Optional, List, TYPE_CHECKING
+from pathlib import Path
+from .conversion import (
+    meters_to_feet,
+    meters_to_miles,
+    mps_to_mph,
+    convert_to_la_timezone,
+)
 
-
-def meters_to_feet(meters: float) -> float:
-    """Convert meters to feet."""
-    return meters * METERS_TO_FEET
-
-
-def meters_to_miles(meters: float) -> float:
-    """Convert meters to miles."""
-    return meters * METERS_TO_MILES
-
-
-def mps_to_mph(mps: float) -> float:
-    """Convert meters per second to miles per hour."""
-    return mps * MPS_TO_MPH
-
-
-def convert_to_la_timezone(dt: Optional[datetime]) -> Optional[datetime]:
-    """Convert datetime to America/Los_Angeles timezone."""
-    if dt is None:
-        return None
-
-    la_tz = ZoneInfo("America/Los_Angeles")
-
-    # If datetime is naive (no timezone), assume it's UTC
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
-
-    return dt.astimezone(la_tz)
+if TYPE_CHECKING:
+    from .parser import GPXParser, GPXStats
 
 
 def format_distance(distance_meters: float) -> str:
@@ -86,3 +65,73 @@ def format_activity_type(activity_type: Optional[str]) -> str:
     if not activity_type:
         return "Unknown"
     return activity_type.replace("_", " ").title()
+
+
+def format_gpx_stats(
+    file_path: Path, parser: "GPXParser", stats: "GPXStats"
+) -> List[str]:
+    """Format GPX statistics into a list of display strings."""
+    lines = []
+
+    # File information
+    lines.append(f"GPX File: {file_path}")
+    lines.append(f"Tracks: {parser.get_track_count()}")
+    lines.append(f"Waypoints: {parser.get_waypoint_count()}")
+
+    # Activity type
+    if stats.activity_type:
+        lines.append(f"Activity: {format_activity_type(stats.activity_type)}")
+
+    lines.append("")  # Empty line separator
+
+    # Distance
+    if stats.total_distance > 0:
+        lines.append(f"Distance: {format_distance(stats.total_distance)}")
+
+    # Time
+    if stats.total_time:
+        lines.append(f"Time: {format_time(stats.total_time)}")
+
+    # Speed
+    if stats.avg_speed:
+        lines.append(f"Average Speed: {format_speed(stats.avg_speed)}")
+
+    if stats.max_speed:
+        lines.append(f"Max Speed: {format_speed(stats.max_speed)}")
+
+    # Heart rate
+    if stats.avg_heart_rate:
+        lines.append(f"Average Heart Rate: {format_heart_rate(stats.avg_heart_rate)}")
+
+    if stats.max_heart_rate:
+        lines.append(f"Max Heart Rate: {format_heart_rate(stats.max_heart_rate)}")
+
+    # Elevation
+    if stats.max_elevation is not None and stats.min_elevation is not None:
+        lines.append(
+            f"Elevation: {format_elevation(stats.min_elevation)} - {format_elevation(stats.max_elevation)}"
+        )
+
+    if stats.total_uphill:
+        lines.append(f"Uphill: {format_elevation(stats.total_uphill)}")
+
+    if stats.total_downhill:
+        lines.append(f"Downhill: {format_elevation(stats.total_downhill)}")
+
+    # Times
+    if stats.start_time:
+        lines.append(f"Start: {format_datetime(stats.start_time)}")
+
+    if stats.end_time:
+        lines.append(f"End: {format_datetime(stats.end_time)}")
+
+    return lines
+
+
+def print_gpx_stats(file_path: Path, parser: "GPXParser", stats: "GPXStats") -> None:
+    """Print formatted GPX statistics to stdout."""
+    import click
+
+    lines = format_gpx_stats(file_path, parser, stats)
+    for line in lines:
+        click.echo(line)
