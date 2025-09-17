@@ -20,5 +20,5 @@ make install
 ## Usage
 
 ```bash
-poetry run gpx-tools parse your-file.gpx
+poetry run gpx-tools
 ```
