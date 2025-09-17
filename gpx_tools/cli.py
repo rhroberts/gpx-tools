@@ -8,7 +8,10 @@ from .formatting import (
     format_speed,
     format_elevation,
     format_datetime,
+    format_heart_rate,
+    format_activity_type,
 )
+from .heart_rate import strip_heart_rate_data
 
 
 @click.group()
@@ -30,6 +33,10 @@ def parse(file: Path) -> None:
         click.echo(f"GPX File: {file}")
         click.echo(f"Tracks: {parser.get_track_count()}")
         click.echo(f"Waypoints: {parser.get_waypoint_count()}")
+
+        if stats.activity_type:
+            click.echo(f"Activity: {format_activity_type(stats.activity_type)}")
+
         click.echo()
 
         if stats.total_distance > 0:
@@ -43,6 +50,12 @@ def parse(file: Path) -> None:
 
         if stats.max_speed:
             click.echo(f"Max Speed: {format_speed(stats.max_speed)}")
+
+        if stats.avg_heart_rate:
+            click.echo(f"Average Heart Rate: {format_heart_rate(stats.avg_heart_rate)}")
+
+        if stats.max_heart_rate:
+            click.echo(f"Max Heart Rate: {format_heart_rate(stats.max_heart_rate)}")
 
         if stats.max_elevation is not None and stats.min_elevation is not None:
             click.echo(
@@ -63,6 +76,20 @@ def parse(file: Path) -> None:
 
     except Exception as e:
         click.echo(f"Error parsing GPX file: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("strip-hr")
+@click.argument("input_file", type=click.Path(exists=True, path_type=Path))
+@click.argument("output_file", type=click.Path(path_type=Path))
+def strip_heart_rate(input_file: Path, output_file: Path) -> None:
+    """Strip heart rate data from a GPX file."""
+    try:
+        strip_heart_rate_data(input_file, output_file)
+        click.echo(f"Heart rate data stripped from {input_file} -> {output_file}")
+
+    except Exception as e:
+        click.echo(f"Error stripping heart rate data: {e}", err=True)
         sys.exit(1)
 
 

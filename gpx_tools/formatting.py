@@ -70,3 +70,15 @@ def format_datetime(dt: datetime) -> str:
 
     la_dt = convert_to_la_timezone(dt)
     return la_dt.strftime("%Y-%m-%d %I:%M:%S %p %Z")
+
+
+def format_heart_rate(heart_rate: float) -> str:
+    """Format heart rate in beats per minute."""
+    return f"{heart_rate:.0f} bpm"
+
+
+def format_activity_type(activity_type: str) -> str:
+    """Format activity type with proper capitalization."""
+    if not activity_type:
+        return "Unknown"
+    return activity_type.replace("_", " ").title()
