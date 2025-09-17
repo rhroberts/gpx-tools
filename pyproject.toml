@@ -15,6 +15,9 @@ dependencies = [
 [project.scripts]
 gpx-tools = "gpx_tools.cli:main"
 
+[project.optional-dependencies]
+test = ["pytest>=8.4.2"]
+
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -23,7 +26,9 @@ build-backend = "poetry.core.masonry.api"
 [dependency-groups]
 dev = [
     "ruff (>=0.13.0,<0.14.0)",
-    "pyright (>=1.1.405,<2.0.0)"
+    "pyright (>=1.1.405,<2.0.0)",
+    "pytest (>=8.4.2,<9.0.0)",
+    "pytest-cov (>=7.0.0,<8.0.0)"
 ]
 
 [tool.pyright]
@@ -32,3 +37,27 @@ reportMissingParameterType = "error"
 reportMissingReturnType = "warning"
 reportUnusedImport = "warning"
 reportUnusedVariable = "warning"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=gpx_tools --cov-report=term-missing --cov-report=html --cov-fail-under=80"
+
+[tool.coverage.run]
+source = ["gpx_tools"]
+omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+]

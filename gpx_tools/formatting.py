@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 from zoneinfo import ZoneInfo
 from .constants import METERS_TO_FEET, METERS_TO_MILES, MPS_TO_MPH
 
@@ -18,7 +19,7 @@ def mps_to_mph(mps: float) -> float:
     return mps * MPS_TO_MPH
 
 
-def convert_to_la_timezone(dt: datetime) -> datetime:
+def convert_to_la_timezone(dt: Optional[datetime]) -> Optional[datetime]:
     """Convert datetime to America/Los_Angeles timezone."""
     if dt is None:
         return None
@@ -64,12 +65,14 @@ def format_elevation(elevation_meters: float) -> str:
     return f"{feet:.0f} ft"
 
 
-def format_datetime(dt: datetime) -> str:
+def format_datetime(dt: Optional[datetime]) -> Optional[str]:
     """Format datetime in LA timezone with 12-hour format and timezone abbreviation."""
     if dt is None:
         return None
 
     la_dt = convert_to_la_timezone(dt)
+    if la_dt is None:
+        return None
     return la_dt.strftime("%Y-%m-%d %I:%M:%S %p %Z")
 
 
@@ -78,7 +81,7 @@ def format_heart_rate(heart_rate: float) -> str:
     return f"{heart_rate:.0f} bpm"
 
 
-def format_activity_type(activity_type: str) -> str:
+def format_activity_type(activity_type: Optional[str]) -> str:
     """Format activity type with proper capitalization."""
     if not activity_type:
         return "Unknown"

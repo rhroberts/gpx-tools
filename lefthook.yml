@@ -6,3 +6,5 @@ pre-commit:
       run: poetry run ruff format --check .
     pyright:
       run: poetry run pyright
+    test:
+      run: poetry run pytest

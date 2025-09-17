@@ -1,0 +1,144 @@
+import pytest
+import tempfile
+from pathlib import Path
+from click.testing import CliRunner
+from gpx_tools.cli import main
+
+
+class TestCLI:
+    @pytest.fixture
+    def runner(self):
+        return CliRunner()
+
+    @pytest.fixture
+    def simple_ride_path(self):
+        return Path(__file__).parent / "test_data" / "simple_ride.gpx"
+
+    @pytest.fixture
+    def no_hr_ride_path(self):
+        return Path(__file__).parent / "test_data" / "no_hr_ride.gpx"
+
+    def test_parse_command_with_heart_rate(
+        self, runner: CliRunner, simple_ride_path: Path
+    ) -> None:
+        result = runner.invoke(main, ["parse", str(simple_ride_path)])
+
+        assert result.exit_code == 0
+        output = result.output
+
+        # Verify expected output sections
+        assert "GPX File:" in output
+        assert "Tracks: 1" in output
+        assert "Waypoints: 0" in output
+        assert "Activity: Cycling" in output
+        assert "Distance:" in output
+        assert "mi" in output or "ft" in output  # Imperial units
+        assert "Average Heart Rate:" in output
+        assert "bpm" in output
+        assert "Max Heart Rate:" in output
+
+    def test_parse_command_without_heart_rate(
+        self, runner: CliRunner, no_hr_ride_path: Path
+    ) -> None:
+        result = runner.invoke(main, ["parse", str(no_hr_ride_path)])
+
+        assert result.exit_code == 0
+        output = result.output
+
+        # Verify expected output sections
+        assert "GPX File:" in output
+        assert "Activity: Running" in output
+        assert "Distance:" in output
+        # Should not have heart rate sections
+        assert "Average Heart Rate:" not in output
+        assert "Max Heart Rate:" not in output
+
+    def test_strip_hr_command(self, runner: CliRunner, simple_ride_path: Path) -> None:
+        with tempfile.NamedTemporaryFile(suffix=".gpx", delete=False) as tmp_file:
+            output_path = Path(tmp_file.name)
+
+        try:
+            result = runner.invoke(
+                main, ["strip-hr", str(simple_ride_path), str(output_path)]
+            )
+
+            assert result.exit_code == 0
+            assert "Heart rate data stripped" in result.output
+            assert output_path.exists()
+
+            # Verify the stripped file by parsing it
+            parse_result = runner.invoke(main, ["parse", str(output_path)])
+            assert parse_result.exit_code == 0
+            assert "Average Heart Rate:" not in parse_result.output
+
+        finally:
+            output_path.unlink(missing_ok=True)
+
+    def test_replace_hr_command(
+        self, runner: CliRunner, simple_ride_path: Path
+    ) -> None:
+        with tempfile.NamedTemporaryFile(suffix=".gpx", delete=False) as tmp_file:
+            output_path = Path(tmp_file.name)
+
+        try:
+            target_hr = 145
+            variation = 8
+
+            result = runner.invoke(
+                main,
+                [
+                    "replace-hr",
+                    str(simple_ride_path),
+                    str(output_path),
+                    str(target_hr),
+                    "--variation",
+                    str(variation),
+                ],
+            )
+
+            assert result.exit_code == 0
+            assert (
+                f"Heart rate data replaced with {target_hr}±{variation} bpm"
+                in result.output
+            )
+            assert output_path.exists()
+
+            # Verify the replaced file by parsing it
+            parse_result = runner.invoke(main, ["parse", str(output_path)])
+            assert parse_result.exit_code == 0
+            assert "Average Heart Rate:" in parse_result.output
+
+        finally:
+            output_path.unlink(missing_ok=True)
+
+    def test_replace_hr_command_default_variation(
+        self, runner: CliRunner, simple_ride_path: Path
+    ) -> None:
+        with tempfile.NamedTemporaryFile(suffix=".gpx", delete=False) as tmp_file:
+            output_path = Path(tmp_file.name)
+
+        try:
+            target_hr = 150
+
+            result = runner.invoke(
+                main,
+                ["replace-hr", str(simple_ride_path), str(output_path), str(target_hr)],
+            )
+
+            assert result.exit_code == 0
+            assert "Heart rate data replaced with 150±10 bpm" in result.output
+
+        finally:
+            output_path.unlink(missing_ok=True)
+
+    def test_parse_nonexistent_file(self, runner: CliRunner) -> None:
+        result = runner.invoke(main, ["parse", "nonexistent.gpx"])
+        assert result.exit_code != 0
+
+    def test_main_group_help(self, runner: CliRunner) -> None:
+        result = runner.invoke(main, ["--help"])
+        assert result.exit_code == 0
+        assert "GPX file tools for processing outdoor activity data" in result.output
+        assert "parse" in result.output
+        assert "strip-hr" in result.output
+        assert "replace-hr" in result.output

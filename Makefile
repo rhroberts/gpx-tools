@@ -1,6 +1,5 @@
-.PHONY: help install lint format typecheck
+.PHONY: help install lint format typecheck test
 
-# Default target
 help:
 	@echo "Available commands:"
 	@echo "  install   - Install dependencies"
@@ -8,19 +7,17 @@ help:
 	@echo "  format    - Format code with ruff"
 	@echo "  typecheck - Run pyright type checking"
 
-
-# Install dependencies
 install:
 	poetry install
 
-# Linting
 lint:
 	poetry run ruff check .
 
-# Formatting
 format:
 	poetry run ruff format .
 
-# Type checking
 typecheck:
 	poetry run pyright
+
+test:
+	poetry run pytest
