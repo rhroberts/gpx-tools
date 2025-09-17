@@ -36,7 +36,13 @@ def _clean_extensions(extensions: List[Any]) -> List[Any]:
         if hasattr(extension, "tag") and len(list(extension)) > 0:
             # This is a container extension (like TrackPointExtension)
             # Create a new extension without heart rate children
-            new_extension = ET.Element(extension.tag, extension.attrib)
+            # Convert lxml attributes to dict for compatibility
+            attrib = (
+                dict(extension.attrib)
+                if hasattr(extension.attrib, "items")
+                else extension.attrib
+            )
+            new_extension = ET.Element(extension.tag, attrib)
             new_extension.text = extension.text
             new_extension.tail = extension.tail
 
@@ -52,7 +58,12 @@ def _clean_extensions(extensions: List[Any]) -> List[Any]:
                     if not any(
                         indicator in tag_lower for indicator in HEART_RATE_INDICATORS
                     ):
-                        new_child = ET.Element(child.tag, child.attrib)
+                        child_attrib = (
+                            dict(child.attrib)
+                            if hasattr(child.attrib, "items")
+                            else child.attrib
+                        )
+                        new_child = ET.Element(child.tag, child_attrib)
                         new_child.text = child.text
                         new_child.tail = child.tail
                         # Copy any grandchildren
@@ -105,7 +116,12 @@ def _replace_hr_in_extensions(
     for extension in extensions:
         if hasattr(extension, "tag") and len(list(extension)) > 0:
             # This is a container extension (like TrackPointExtension)
-            new_extension = ET.Element(extension.tag, extension.attrib)
+            attrib = (
+                dict(extension.attrib)
+                if hasattr(extension.attrib, "items")
+                else extension.attrib
+            )
+            new_extension = ET.Element(extension.tag, attrib)
             new_extension.text = extension.text
             new_extension.tail = extension.tail
 
@@ -121,7 +137,12 @@ def _replace_hr_in_extensions(
                     if any(
                         indicator in tag_lower for indicator in HEART_RATE_INDICATORS
                     ):
-                        new_child = ET.Element(child.tag, child.attrib)
+                        child_attrib = (
+                            dict(child.attrib)
+                            if hasattr(child.attrib, "items")
+                            else child.attrib
+                        )
+                        new_child = ET.Element(child.tag, child_attrib)
                         hr_value = avg_hr + random.randint(-variation, variation)
                         hr_value = max(MIN_HEART_RATE, min(MAX_HEART_RATE, hr_value))
                         new_child.text = str(hr_value)
@@ -129,7 +150,12 @@ def _replace_hr_in_extensions(
                         new_extension.append(new_child)
                     else:
                         # Copy non-HR elements unchanged
-                        new_child = ET.Element(child.tag, child.attrib)
+                        child_attrib = (
+                            dict(child.attrib)
+                            if hasattr(child.attrib, "items")
+                            else child.attrib
+                        )
+                        new_child = ET.Element(child.tag, child_attrib)
                         new_child.text = child.text
                         new_child.tail = child.tail
                         # Copy any grandchildren
@@ -141,7 +167,12 @@ def _replace_hr_in_extensions(
 
         elif _is_heart_rate_extension(extension):
             # This is a direct heart rate extension - replace it
-            new_extension = ET.Element(extension.tag, extension.attrib)
+            attrib = (
+                dict(extension.attrib)
+                if hasattr(extension.attrib, "items")
+                else extension.attrib
+            )
+            new_extension = ET.Element(extension.tag, attrib)
             hr_value = avg_hr + random.randint(-variation, variation)
             hr_value = max(MIN_HEART_RATE, min(MAX_HEART_RATE, hr_value))
             new_extension.text = str(hr_value)

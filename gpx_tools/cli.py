@@ -12,6 +12,7 @@ from .formatting import (
     format_activity_type,
 )
 from .heart_rate import strip_heart_rate_data, replace_heart_rate_data
+from .tcx_converter import convert_gpx_to_tcx
 from .constants import DEFAULT_HR_VARIATION
 
 
@@ -120,6 +121,24 @@ def replace_heart_rate(
 
     except Exception as e:
         click.echo(f"Error replacing heart rate data: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("convert-to-tcx")
+@click.argument("input_file", type=click.Path(exists=True, path_type=Path))
+@click.argument("output_file", type=click.Path(path_type=Path))
+def convert_to_tcx(input_file: Path, output_file: Path) -> None:
+    """Convert a GPX file to TCX format.
+
+    Converts GPX track data to Garmin TCX format, preserving GPS coordinates,
+    elevation, timestamps, and heart rate data when available.
+    """
+    try:
+        convert_gpx_to_tcx(input_file, output_file)
+        click.echo(f"GPX file converted to TCX format: {input_file} -> {output_file}")
+
+    except Exception as e:
+        click.echo(f"Error converting to TCX format: {e}", err=True)
         sys.exit(1)
 
 
