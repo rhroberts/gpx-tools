@@ -11,7 +11,7 @@ from .formatting import (
     format_heart_rate,
     format_activity_type,
 )
-from .heart_rate import strip_heart_rate_data
+from .heart_rate import strip_heart_rate_data, replace_heart_rate_data
 
 
 @click.group()
@@ -90,6 +90,35 @@ def strip_heart_rate(input_file: Path, output_file: Path) -> None:
 
     except Exception as e:
         click.echo(f"Error stripping heart rate data: {e}", err=True)
+        sys.exit(1)
+
+
+@main.command("replace-hr")
+@click.argument("input_file", type=click.Path(exists=True, path_type=Path))
+@click.argument("output_file", type=click.Path(path_type=Path))
+@click.argument("avg_hr", type=int)
+@click.option(
+    "--variation",
+    type=int,
+    default=10,
+    help="Heart rate variation around average (default: 10 bpm)",
+)
+def replace_heart_rate(
+    input_file: Path, output_file: Path, avg_hr: int, variation: int
+) -> None:
+    """Replace heart rate data with custom average and realistic variation.
+
+    AVG_HR is your perceived average heart rate for the activity.
+    Variation creates realistic fluctuations (±VARIATION bpm around average).
+    """
+    try:
+        replace_heart_rate_data(input_file, output_file, avg_hr, variation)
+        click.echo(
+            f"Heart rate data replaced with {avg_hr}±{variation} bpm: {input_file} -> {output_file}"
+        )
+
+    except Exception as e:
+        click.echo(f"Error replacing heart rate data: {e}", err=True)
         sys.exit(1)
 
 

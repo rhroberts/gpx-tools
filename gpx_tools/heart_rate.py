@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Any, List, Optional
+import random
 import gpxpy
 import gpxpy.gpx
 
@@ -66,6 +67,94 @@ def _clean_extensions(extensions: List[Any]) -> List[Any]:
             cleaned_extensions.append(extension)
 
     return cleaned_extensions
+
+
+def replace_heart_rate_data(
+    input_file: Path, output_file: Path, avg_hr: int, variation: int = 10
+) -> None:
+    """Replace heart rate data with custom average and realistic variation."""
+    with open(input_file, "r") as gpx_file:
+        gpx = gpxpy.parse(gpx_file)
+
+    # Set random seed for reproducible results
+    random.seed(42)
+
+    # Replace heart rate data in all track points
+    for track in gpx.tracks:
+        for segment in track.segments:
+            for point in segment.points:
+                if point.extensions:
+                    # Replace heart rate data in extensions
+                    point.extensions = _replace_hr_in_extensions(
+                        point.extensions, avg_hr, variation
+                    )
+
+    # Write the modified GPX to output file
+    with open(output_file, "w") as f:
+        f.write(gpx.to_xml())
+
+
+def _replace_hr_in_extensions(
+    extensions: List[Any], avg_hr: int, variation: int
+) -> List[Any]:
+    """Replace heart rate data in extensions with custom values."""
+    import xml.etree.ElementTree as ET
+
+    modified_extensions = []
+
+    for extension in extensions:
+        if hasattr(extension, "tag") and len(list(extension)) > 0:
+            # This is a container extension (like TrackPointExtension)
+            new_extension = ET.Element(extension.tag, extension.attrib)
+            new_extension.text = extension.text
+            new_extension.tail = extension.tail
+
+            # Copy all children, replacing heart rate elements
+            for child in extension:
+                if hasattr(child, "tag"):
+                    tag_name = (
+                        child.tag.split("}")[-1] if "}" in child.tag else child.tag
+                    )
+                    tag_lower = tag_name.lower()
+
+                    # Replace heart rate elements with custom value
+                    if any(
+                        indicator in tag_lower
+                        for indicator in ["hr", "heartrate", "bpm"]
+                    ):
+                        new_child = ET.Element(child.tag, child.attrib)
+                        # Generate realistic HR value with variation
+                        hr_value = avg_hr + random.randint(-variation, variation)
+                        # Keep within reasonable bounds
+                        hr_value = max(50, min(220, hr_value))
+                        new_child.text = str(hr_value)
+                        new_child.tail = child.tail
+                        new_extension.append(new_child)
+                    else:
+                        # Copy non-HR elements unchanged
+                        new_child = ET.Element(child.tag, child.attrib)
+                        new_child.text = child.text
+                        new_child.tail = child.tail
+                        # Copy any grandchildren
+                        for grandchild in child:
+                            new_child.append(grandchild)
+                        new_extension.append(new_child)
+
+            modified_extensions.append(new_extension)
+
+        elif _is_heart_rate_extension(extension):
+            # This is a direct heart rate extension - replace it
+            new_extension = ET.Element(extension.tag, extension.attrib)
+            hr_value = avg_hr + random.randint(-variation, variation)
+            hr_value = max(50, min(220, hr_value))
+            new_extension.text = str(hr_value)
+            new_extension.tail = extension.tail
+            modified_extensions.append(new_extension)
+        else:
+            # This is a non-HR extension - keep unchanged
+            modified_extensions.append(extension)
+
+    return modified_extensions
 
 
 def extract_heart_rate_data(gpx: gpxpy.gpx.GPX) -> List[float]:
