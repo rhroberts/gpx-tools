@@ -12,6 +12,8 @@ GPX file parser and analyzer for outdoor activity data.
 ## Installation
 
 ```bash
+git clone https://github.com/rhroberts/gpx-tools.git
+cd gpx-tools
 make install
 ```
 
