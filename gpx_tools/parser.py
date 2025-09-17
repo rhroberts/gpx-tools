@@ -1,10 +1,17 @@
 import gpxpy
 import gpxpy.gpx
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 from dataclasses import dataclass
 from datetime import datetime
-from .heart_rate import calculate_average_heart_rate, calculate_max_heart_rate
+from .constants import (
+    MIN_HEART_RATE,
+    MAX_HEART_RATE,
+    HEART_RATE_INDICATORS,
+    MAX_REASONABLE_SPEED_MPS,
+    MIN_TIME_INTERVAL_SECONDS,
+    MAX_TIME_INTERVAL_SECONDS,
+)
 
 
 @dataclass
@@ -66,10 +73,6 @@ class GPXParser:
                 moving_data = segment.get_moving_data()
                 if moving_data:
                     stats.total_time = moving_data.moving_time
-                    # Don't use gpxpy's max_speed as it filters out legitimate high speeds
-                    # stats.max_speed = moving_data.max_speed
-
-                # Calculate our own max speed from raw GPS data
                 segment_max_speed = self._calculate_max_speed(segment)
                 if segment_max_speed is not None:
                     if stats.max_speed is None or segment_max_speed > stats.max_speed:
@@ -93,11 +96,8 @@ class GPXParser:
         if stats.total_distance > 0 and stats.total_time:
             stats.avg_speed = stats.total_distance / stats.total_time
 
-        # Calculate heart rate statistics
-        stats.avg_heart_rate = calculate_average_heart_rate(self.gpx)
-        stats.max_heart_rate = calculate_max_heart_rate(self.gpx)
-
-        # Extract activity type
+        stats.avg_heart_rate = self._calculate_average_heart_rate()
+        stats.max_heart_rate = self._calculate_max_heart_rate()
         stats.activity_type = self._extract_activity_type()
 
         return stats
@@ -107,13 +107,9 @@ class GPXParser:
         if not self.gpx:
             return None
 
-        # Check track types first
         for track in self.gpx.tracks:
             if hasattr(track, "type") and track.type:
                 return track.type
-
-        # Check for activity type in extensions or metadata
-        # This could be extended to look in specific namespaces for different devices
         if hasattr(self.gpx, "extensions") and self.gpx.extensions:
             for ext in self.gpx.extensions:
                 if hasattr(ext, "tag"):
@@ -136,18 +132,111 @@ class GPXParser:
 
             if prev_point.time and curr_point.time:
                 time_diff = (curr_point.time - prev_point.time).total_seconds()
-                # Only consider reasonable time intervals (1-60 seconds)
-                if 1 <= time_diff <= 60:
+                if MIN_TIME_INTERVAL_SECONDS <= time_diff <= MAX_TIME_INTERVAL_SECONDS:
                     distance = curr_point.distance_2d(prev_point) or 0
                     speed_mps = distance / time_diff
 
-                    # Only consider reasonable speeds (up to ~200 mph / 90 m/s)
-                    # This filters out obvious GPS errors while keeping legitimate high speeds
-                    if 0 <= speed_mps <= 90:
+                    if 0 <= speed_mps <= MAX_REASONABLE_SPEED_MPS:
                         if max_speed is None or speed_mps > max_speed:
                             max_speed = speed_mps
 
         return max_speed
+
+    def _extract_heart_rate_data(self) -> list[float]:
+        """Extract all heart rate values from the GPX data."""
+        heart_rates = []
+
+        if not self.gpx:
+            return heart_rates
+
+        for track in self.gpx.tracks:
+            for segment in track.segments:
+                for point in segment.points:
+                    if point.extensions:
+                        for ext in point.extensions:
+                            hr_value = self._extract_heart_rate_from_extension(ext)
+                            if hr_value is not None:
+                                heart_rates.append(hr_value)
+
+        return heart_rates
+
+    def _calculate_average_heart_rate(self) -> Optional[float]:
+        """Calculate average heart rate from GPX data."""
+        heart_rates = self._extract_heart_rate_data()
+
+        if not heart_rates:
+            return None
+
+        return sum(heart_rates) / len(heart_rates)
+
+    def _calculate_max_heart_rate(self) -> Optional[float]:
+        """Calculate maximum heart rate from GPX data."""
+        heart_rates = self._extract_heart_rate_data()
+
+        if not heart_rates:
+            return None
+
+        return max(heart_rates)
+
+    def _extract_heart_rate_from_extension(self, extension: Any) -> Optional[float]:
+        """Extract heart rate value from an extension."""
+        try:
+            # Check if it's an XML element with children (like Garmin TrackPointExtension)
+            if hasattr(extension, "tag") and len(list(extension)) > 0:
+                # Look through child elements for heart rate
+                for child in extension:
+                    if hasattr(child, "tag") and hasattr(child, "text"):
+                        # Extract tag name without namespace
+                        tag_name = (
+                            child.tag.split("}")[-1] if "}" in child.tag else child.tag
+                        )
+                        tag_lower = tag_name.lower()
+
+                        if any(
+                            indicator in tag_lower
+                            for indicator in HEART_RATE_INDICATORS
+                        ):
+                            if child.text and child.text.strip():
+                                value = float(child.text.strip())
+                                # Validate heart rate range
+                                if MIN_HEART_RATE <= value <= MAX_HEART_RATE:
+                                    return value
+
+            # Check if it's a direct heart rate element
+            if hasattr(extension, "tag") and hasattr(extension, "text"):
+                # Extract tag name without namespace
+                tag_name = (
+                    extension.tag.split("}")[-1]
+                    if "}" in extension.tag
+                    else extension.tag
+                )
+                tag_lower = tag_name.lower()
+
+                if any(indicator in tag_lower for indicator in HEART_RATE_INDICATORS):
+                    if extension.text and extension.text.strip():
+                        value = float(extension.text.strip())
+                        # Validate heart rate range
+                        if MIN_HEART_RATE <= value <= MAX_HEART_RATE:
+                            return value
+
+            # Check string representation for heart rate value
+            ext_str = str(extension).lower()
+            if any(indicator in ext_str for indicator in HEART_RATE_INDICATORS):
+                # Try to extract numeric value from string
+                import re
+
+                numbers = re.findall(r"\d+\.?\d*", ext_str)
+                if numbers:
+                    # Take the first reasonable heart rate value (30-220 bpm)
+                    for num_str in numbers:
+                        value = float(num_str)
+                        if MIN_HEART_RATE <= value <= MAX_HEART_RATE:
+                            return value
+
+        except (ValueError, AttributeError):
+            pass
+
+        return None
 
     def get_track_count(self) -> int:
         if not self.gpx:

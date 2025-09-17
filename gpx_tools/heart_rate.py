@@ -1,8 +1,14 @@
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List
 import random
 import gpxpy
-import gpxpy.gpx
+from .constants import (
+    HEART_RATE_INDICATORS,
+    MIN_HEART_RATE,
+    MAX_HEART_RATE,
+    RANDOM_SEED,
+    DEFAULT_HR_VARIATION,
+)
 
 
 def strip_heart_rate_data(input_file: Path, output_file: Path) -> None:
@@ -10,15 +16,12 @@ def strip_heart_rate_data(input_file: Path, output_file: Path) -> None:
     with open(input_file, "r") as gpx_file:
         gpx = gpxpy.parse(gpx_file)
 
-    # Remove heart rate data from all track points
     for track in gpx.tracks:
         for segment in track.segments:
             for point in segment.points:
                 if point.extensions:
-                    # Clean extensions by removing heart rate data
                     point.extensions = _clean_extensions(point.extensions)
 
-    # Write the modified GPX to output file
     with open(output_file, "w") as f:
         f.write(gpx.to_xml())
 
@@ -47,8 +50,7 @@ def _clean_extensions(extensions: List[Any]) -> List[Any]:
 
                     # Skip heart rate elements
                     if not any(
-                        indicator in tag_lower
-                        for indicator in ["hr", "heartrate", "bpm"]
+                        indicator in tag_lower for indicator in HEART_RATE_INDICATORS
                     ):
                         new_child = ET.Element(child.tag, child.attrib)
                         new_child.text = child.text
@@ -70,26 +72,24 @@ def _clean_extensions(extensions: List[Any]) -> List[Any]:
 
 
 def replace_heart_rate_data(
-    input_file: Path, output_file: Path, avg_hr: int, variation: int = 10
+    input_file: Path,
+    output_file: Path,
+    avg_hr: int,
+    variation: int = DEFAULT_HR_VARIATION,
 ) -> None:
     """Replace heart rate data with custom average and realistic variation."""
     with open(input_file, "r") as gpx_file:
         gpx = gpxpy.parse(gpx_file)
 
-    # Set random seed for reproducible results
-    random.seed(42)
+    random.seed(RANDOM_SEED)
 
-    # Replace heart rate data in all track points
     for track in gpx.tracks:
         for segment in track.segments:
             for point in segment.points:
                 if point.extensions:
-                    # Replace heart rate data in extensions
                     point.extensions = _replace_hr_in_extensions(
                         point.extensions, avg_hr, variation
                     )
-
-    # Write the modified GPX to output file
     with open(output_file, "w") as f:
         f.write(gpx.to_xml())
 
@@ -119,14 +119,11 @@ def _replace_hr_in_extensions(
 
                     # Replace heart rate elements with custom value
                     if any(
-                        indicator in tag_lower
-                        for indicator in ["hr", "heartrate", "bpm"]
+                        indicator in tag_lower for indicator in HEART_RATE_INDICATORS
                     ):
                         new_child = ET.Element(child.tag, child.attrib)
-                        # Generate realistic HR value with variation
                         hr_value = avg_hr + random.randint(-variation, variation)
-                        # Keep within reasonable bounds
-                        hr_value = max(50, min(220, hr_value))
+                        hr_value = max(MIN_HEART_RATE, min(MAX_HEART_RATE, hr_value))
                         new_child.text = str(hr_value)
                         new_child.tail = child.tail
                         new_extension.append(new_child)
@@ -146,7 +143,7 @@ def _replace_hr_in_extensions(
             # This is a direct heart rate extension - replace it
             new_extension = ET.Element(extension.tag, extension.attrib)
             hr_value = avg_hr + random.randint(-variation, variation)
-            hr_value = max(50, min(220, hr_value))
+            hr_value = max(MIN_HEART_RATE, min(MAX_HEART_RATE, hr_value))
             new_extension.text = str(hr_value)
             new_extension.tail = extension.tail
             modified_extensions.append(new_extension)
@@ -155,101 +152,6 @@ def _replace_hr_in_extensions(
             modified_extensions.append(extension)
 
     return modified_extensions
-
-
-def extract_heart_rate_data(gpx: gpxpy.gpx.GPX) -> List[float]:
-    """Extract all heart rate values from a GPX object."""
-    heart_rates = []
-
-    for track in gpx.tracks:
-        for segment in track.segments:
-            for point in segment.points:
-                if point.extensions:
-                    for ext in point.extensions:
-                        hr_value = _extract_heart_rate_from_extension(ext)
-                        if hr_value is not None:
-                            heart_rates.append(hr_value)
-
-    return heart_rates
-
-
-def calculate_average_heart_rate(gpx: gpxpy.gpx.GPX) -> Optional[float]:
-    """Calculate average heart rate from GPX data."""
-    heart_rates = extract_heart_rate_data(gpx)
-
-    if not heart_rates:
-        return None
-
-    return sum(heart_rates) / len(heart_rates)
-
-
-def calculate_max_heart_rate(gpx: gpxpy.gpx.GPX) -> Optional[float]:
-    """Calculate maximum heart rate from GPX data."""
-    heart_rates = extract_heart_rate_data(gpx)
-
-    if not heart_rates:
-        return None
-
-    return max(heart_rates)
-
-
-def _extract_heart_rate_from_extension(extension: Any) -> Optional[float]:
-    """Extract heart rate value from an extension."""
-    try:
-        # Check if it's an XML element with children (like Garmin TrackPointExtension)
-        if hasattr(extension, "tag") and len(list(extension)) > 0:
-            # Look through child elements for heart rate
-            for child in extension:
-                if hasattr(child, "tag") and hasattr(child, "text"):
-                    # Extract tag name without namespace
-                    tag_name = (
-                        child.tag.split("}")[-1] if "}" in child.tag else child.tag
-                    )
-                    tag_lower = tag_name.lower()
-
-                    if any(
-                        indicator in tag_lower
-                        for indicator in ["hr", "heartrate", "bpm"]
-                    ):
-                        if child.text and child.text.strip():
-                            value = float(child.text.strip())
-                            # Validate heart rate range
-                            if 30 <= value <= 220:
-                                return value
-
-        # Check if it's a direct heart rate element
-        if hasattr(extension, "tag") and hasattr(extension, "text"):
-            # Extract tag name without namespace
-            tag_name = (
-                extension.tag.split("}")[-1] if "}" in extension.tag else extension.tag
-            )
-            tag_lower = tag_name.lower()
-
-            if any(indicator in tag_lower for indicator in ["hr", "heartrate", "bpm"]):
-                if extension.text and extension.text.strip():
-                    value = float(extension.text.strip())
-                    # Validate heart rate range
-                    if 30 <= value <= 220:
-                        return value
-
-        # Check string representation for heart rate value
-        ext_str = str(extension).lower()
-        if any(indicator in ext_str for indicator in ["hr", "heartrate", "bpm"]):
-            # Try to extract numeric value from string
-            import re
-
-            numbers = re.findall(r"\d+\.?\d*", ext_str)
-            if numbers:
-                # Take the first reasonable heart rate value (30-220 bpm)
-                for num_str in numbers:
-                    value = float(num_str)
-                    if 30 <= value <= 220:
-                        return value
-
-    except (ValueError, AttributeError):
-        pass
-
-    return None
 
 
 def _is_heart_rate_extension(extension: Any) -> bool:
@@ -262,9 +164,7 @@ def _is_heart_rate_extension(extension: Any) -> bool:
                 # Extract tag name without namespace
                 tag_name = child.tag.split("}")[-1] if "}" in child.tag else child.tag
                 tag_lower = tag_name.lower()
-                if any(
-                    indicator in tag_lower for indicator in ["hr", "heartrate", "bpm"]
-                ):
+                if any(indicator in tag_lower for indicator in HEART_RATE_INDICATORS):
                     return True
 
     # Check if it's a direct heart rate element
@@ -274,9 +174,9 @@ def _is_heart_rate_extension(extension: Any) -> bool:
             extension.tag.split("}")[-1] if "}" in extension.tag else extension.tag
         )
         tag_lower = tag_name.lower()
-        if any(indicator in tag_lower for indicator in ["hr", "heartrate", "bpm"]):
+        if any(indicator in tag_lower for indicator in HEART_RATE_INDICATORS):
             return True
 
     # Check string representation for heart rate indicators
     ext_str = str(extension).lower()
-    return any(indicator in ext_str for indicator in ["hr", "heartrate", "bpm"])
+    return any(indicator in ext_str for indicator in HEART_RATE_INDICATORS)

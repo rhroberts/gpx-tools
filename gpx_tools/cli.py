@@ -12,6 +12,7 @@ from .formatting import (
     format_activity_type,
 )
 from .heart_rate import strip_heart_rate_data, replace_heart_rate_data
+from .constants import DEFAULT_HR_VARIATION
 
 
 @click.group()
@@ -100,8 +101,8 @@ def strip_heart_rate(input_file: Path, output_file: Path) -> None:
 @click.option(
     "--variation",
     type=int,
-    default=10,
-    help="Heart rate variation around average (default: 10 bpm)",
+    default=DEFAULT_HR_VARIATION,
+    help=f"Heart rate variation around average (default: {DEFAULT_HR_VARIATION} bpm)",
 )
 def replace_heart_rate(
     input_file: Path, output_file: Path, avg_hr: int, variation: int

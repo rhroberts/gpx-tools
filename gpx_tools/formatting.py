@@ -1,20 +1,21 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from .constants import METERS_TO_FEET, METERS_TO_MILES, MPS_TO_MPH
 
 
 def meters_to_feet(meters: float) -> float:
     """Convert meters to feet."""
-    return meters * 3.28084
+    return meters * METERS_TO_FEET
 
 
 def meters_to_miles(meters: float) -> float:
     """Convert meters to miles."""
-    return meters * 0.000621371
+    return meters * METERS_TO_MILES
 
 
 def mps_to_mph(mps: float) -> float:
     """Convert meters per second to miles per hour."""
-    return mps * 2.23694
+    return mps * MPS_TO_MPH
 
 
 def convert_to_la_timezone(dt: datetime) -> datetime:
