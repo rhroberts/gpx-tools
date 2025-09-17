@@ -1,0 +1,17 @@
+build/
+gpx/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.env
+dist/
+*.egg-info/
+.pytest_cache/
+.coverage

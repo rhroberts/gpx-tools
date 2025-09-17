@@ -1,0 +1,8 @@
+pre-commit:
+  commands:
+    ruff-check:
+      run: poetry run ruff check .
+    ruff-format:
+      run: poetry run ruff format --check .
+    pyright:
+      run: poetry run pyright
