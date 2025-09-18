@@ -12,9 +12,11 @@ from .visualization import (
     create_heart_rate_chart,
     create_pace_chart,
     create_speed_chart,
+    create_elevation_chart,
     validate_heart_rate_data,
     validate_pace_data,
     validate_speed_data,
+    validate_elevation_data,
 )
 
 
@@ -203,6 +205,39 @@ def plot_speed(file: Path, width: int, height: int, time_unit: str) -> None:
 
     except Exception as e:
         click.echo(f"Error creating speed chart: {e}", err=True)
+        sys.exit(1)
+
+
+@plot.command("elevation")
+@click.argument("file", type=click.Path(exists=True, path_type=Path))
+@click.option("--width", default=80, help="Chart width in characters (default: 80)")
+@click.option("--height", default=20, help="Chart height in lines (default: 20)")
+@click.option(
+    "--time-unit",
+    type=click.Choice(["auto", "seconds", "minutes"]),
+    default="auto",
+    help="Time axis unit (default: auto)",
+)
+def plot_elevation(file: Path, width: int, height: int, time_unit: str) -> None:
+    """Show elevation profile (feet) over time as an ASCII graph."""
+    try:
+        parser = GPXParser(file)
+        parser.parse()
+
+        time_series = parser.get_elevation_time_series()
+
+        # Validate elevation data
+        error_msg = validate_elevation_data(time_series)
+        if error_msg:
+            click.echo(f"Error: {error_msg}", err=True)
+            sys.exit(1)
+
+        # Create and display chart
+        chart = create_elevation_chart(time_series, width, height, time_unit)
+        click.echo(chart)
+
+    except Exception as e:
+        click.echo(f"Error creating elevation chart: {e}", err=True)
         sys.exit(1)
 
 

@@ -262,3 +262,103 @@ class TestSpeedVisualization:
         assert "Speed (mph) over Time" in chart
         assert "Duration:" in chart
         assert "mph" in chart
+
+
+class TestElevationVisualization:
+    def test_create_elevation_chart_basic(self) -> None:
+        """Test basic elevation chart creation."""
+        from gpx_tools.visualization import create_elevation_chart
+
+        start_time = datetime(2024, 1, 1, 10, 0, 0)
+        time_series = [
+            (start_time, 1000.0),
+            (start_time + timedelta(seconds=60), 1050.0),
+            (start_time + timedelta(seconds=120), 1100.0),
+            (start_time + timedelta(seconds=180), 1075.0),
+        ]
+
+        chart = create_elevation_chart(time_series, width=40, height=10)
+
+        assert "Elevation (feet) over Time" in chart
+        assert "ft" in chart
+        assert "Duration:" in chart
+        assert "Max:" in chart
+        assert "Min:" in chart
+        assert "Gain:" in chart
+        assert "Loss:" in chart
+
+    def test_validate_elevation_data(self) -> None:
+        """Test elevation data validation."""
+        from gpx_tools.visualization import validate_elevation_data
+        from gpx_tools.constants import MAX_ELEVATION_FEET
+
+        # Empty data
+        assert validate_elevation_data([]) == "No elevation data found in GPX file"
+
+        # Insufficient data
+        single_point = [(datetime.now(), 1000.0)]
+        assert (
+            validate_elevation_data(single_point)
+            == "Insufficient elevation data points for visualization"
+        )
+
+        # Valid data
+        valid_series = [
+            (datetime.now(), 1000.0),
+            (datetime.now() + timedelta(seconds=60), 1100.0),
+        ]
+        assert validate_elevation_data(valid_series) is None
+
+        # Invalid elevation (too high)
+        invalid_high = [
+            (datetime.now(), 1000.0),
+            (datetime.now() + timedelta(seconds=60), MAX_ELEVATION_FEET + 1000),
+        ]
+        error_msg = validate_elevation_data(invalid_high)
+        assert error_msg is not None
+        assert "outside reasonable range" in error_msg
+
+    def test_elevation_gain_loss_calculation(self) -> None:
+        """Test elevation gain and loss calculations."""
+        from gpx_tools.visualization import (
+            calculate_total_elevation_gain,
+            calculate_total_elevation_loss,
+        )
+
+        start_time = datetime.now()
+        time_series = [
+            (start_time, 1000.0),
+            (start_time + timedelta(seconds=60), 1100.0),  # +100 gain
+            (start_time + timedelta(seconds=120), 1050.0),  # -50 loss
+            (start_time + timedelta(seconds=180), 1150.0),  # +100 gain
+        ]
+
+        assert calculate_total_elevation_gain(time_series) == 200.0
+        assert calculate_total_elevation_loss(time_series) == 50.0
+
+    def test_elevation_chart_with_large_dataset(self) -> None:
+        """Test elevation chart with many data points."""
+        from gpx_tools.visualization import create_elevation_chart
+        from typing import List, Tuple
+
+        start_time = datetime.now()
+        time_series: List[Tuple[datetime, float]] = []
+
+        # Generate 500 data points with realistic elevation changes
+        base_elevation = 1000.0
+        for i in range(500):
+            timestamp = start_time + timedelta(seconds=i)
+            # Create some realistic elevation variation
+            import math
+
+            elevation = (
+                base_elevation + 200 * math.sin(i * 0.02) + 50 * math.sin(i * 0.1)
+            )
+            time_series.append((timestamp, elevation))
+
+        # Should downsample and produce reasonable output
+        chart = create_elevation_chart(time_series, width=80, height=20)
+        assert "Elevation (feet) over Time" in chart
+        assert "Duration:" in chart
+        assert "Gain:" in chart
+        assert "Loss:" in chart

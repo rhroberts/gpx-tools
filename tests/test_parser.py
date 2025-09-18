@@ -90,8 +90,13 @@ class TestGPXParser:
             for timestamp, pace in time_series:
                 assert timestamp is not None
                 assert isinstance(pace, float)
-                # Reasonable pace range (2-60 min/mile)
-                assert 2.0 <= pace <= 60.0
+                # Reasonable pace range
+                from gpx_tools.constants import (
+                    MIN_PACE_MINUTES_PER_MILE,
+                    MAX_PACE_MINUTES_PER_MILE,
+                )
+
+                assert MIN_PACE_MINUTES_PER_MILE <= pace <= MAX_PACE_MINUTES_PER_MILE
 
     def test_get_pace_time_series_no_data(self, no_hr_parser: GPXParser) -> None:
         """Test pace extraction when there might be insufficient data."""
@@ -116,10 +121,17 @@ class TestGPXParser:
             for timestamp, pace in ts:
                 assert timestamp is not None
                 assert isinstance(pace, float)
-                assert 2.0 <= pace <= 60.0
+                from gpx_tools.constants import (
+                    MIN_PACE_MINUTES_PER_MILE,
+                    MAX_PACE_MINUTES_PER_MILE,
+                )
+
+                assert MIN_PACE_MINUTES_PER_MILE <= pace <= MAX_PACE_MINUTES_PER_MILE
 
     def test_get_speed_time_series(self, simple_parser: GPXParser) -> None:
         """Test extraction of speed time series data."""
+        from tests.constants import MAX_REASONABLE_SPEED_MPH
+
         time_series = simple_parser.get_speed_time_series()
 
         assert isinstance(time_series, list)
@@ -129,11 +141,13 @@ class TestGPXParser:
             for timestamp, speed in time_series:
                 assert timestamp is not None
                 assert isinstance(speed, float)
-                # Reasonable speed range (0-200 mph)
-                assert 0 <= speed <= 200
+                # Reasonable speed range
+                assert 0 <= speed <= MAX_REASONABLE_SPEED_MPH
 
     def test_get_speed_time_series_with_window(self, simple_parser: GPXParser) -> None:
         """Test speed extraction with different window sizes."""
+        from tests.constants import MAX_REASONABLE_SPEED_MPH
+
         # Test with small window
         time_series_small = simple_parser.get_speed_time_series(window_size=3)
         assert isinstance(time_series_small, list)
@@ -147,4 +161,20 @@ class TestGPXParser:
             for timestamp, speed in ts:
                 assert timestamp is not None
                 assert isinstance(speed, float)
-                assert 0 <= speed <= 200
+                assert 0 <= speed <= MAX_REASONABLE_SPEED_MPH
+
+    def test_get_elevation_time_series(self, simple_parser: GPXParser) -> None:
+        """Test extraction of elevation time series data."""
+        from gpx_tools.constants import MIN_ELEVATION_FEET, MAX_ELEVATION_FEET
+
+        time_series = simple_parser.get_elevation_time_series()
+
+        assert isinstance(time_series, list)
+
+        # If we have elevation data, verify its structure and values
+        if len(time_series) > 0:
+            for timestamp, elevation in time_series:
+                assert timestamp is not None
+                assert isinstance(elevation, float)
+                # Reasonable elevation range in feet
+                assert MIN_ELEVATION_FEET <= elevation <= MAX_ELEVATION_FEET

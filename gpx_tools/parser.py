@@ -447,3 +447,27 @@ class GPXParser:
                                 time_series.append((point_time, speed_mph))
 
         return time_series
+
+    def get_elevation_time_series(self) -> List[Tuple[datetime, float]]:
+        """Extract elevation data with timestamps as a time series (feet).
+
+        Returns elevation in feet for consistency with other imperial units.
+        """
+        time_series: List[Tuple[datetime, float]] = []
+
+        if not self.gpx:
+            self.parse()
+
+        if not self.gpx:
+            return time_series
+
+        for track in self.gpx.tracks:
+            for segment in track.segments:
+                for point in segment.points:
+                    if point.time and point.elevation is not None:
+                        from .conversion import meters_to_feet
+
+                        elevation_feet = meters_to_feet(point.elevation)
+                        time_series.append((point.time, elevation_feet))
+
+        return time_series

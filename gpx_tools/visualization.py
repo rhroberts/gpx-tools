@@ -3,6 +3,11 @@ from typing import List, Optional, Tuple
 
 import asciichartpy as asciichart  # type: ignore[import-untyped]
 
+from .constants import (
+    MIN_ELEVATION_FEET,
+    MAX_ELEVATION_FEET,
+    TIME_UNIT_THRESHOLD_SECONDS,
+)
 from .formatting import format_heart_rate, format_time
 
 
@@ -55,7 +60,7 @@ def create_heart_rate_chart(
     # Determine time unit for display
     max_elapsed = max(time_labels) if time_labels else 0
     if time_unit == "auto":
-        _ = "minutes" if max_elapsed > 300 else "seconds"  # 5+ minutes
+        _ = "minutes" if max_elapsed > TIME_UNIT_THRESHOLD_SECONDS else "seconds"
     else:
         _ = time_unit
 
@@ -141,7 +146,7 @@ def create_pace_chart(
     # Determine time unit for display
     max_elapsed = max(time_labels) if time_labels else 0
     if time_unit == "auto":
-        _ = "minutes" if max_elapsed > 300 else "seconds"  # 5+ minutes
+        _ = "minutes" if max_elapsed > TIME_UNIT_THRESHOLD_SECONDS else "seconds"
     else:
         _ = time_unit
 
@@ -239,7 +244,7 @@ def create_speed_chart(
     # Determine time unit for display
     max_elapsed = max(time_labels) if time_labels else 0
     if time_unit == "auto":
-        _ = "minutes" if max_elapsed > 300 else "seconds"  # 5+ minutes
+        _ = "minutes" if max_elapsed > TIME_UNIT_THRESHOLD_SECONDS else "seconds"
     else:
         _ = time_unit
 
@@ -277,5 +282,111 @@ def validate_speed_data(
 
     if len(time_series) < 2:
         return "Insufficient speed data points for visualization"
+
+    return None
+
+
+def create_elevation_chart(
+    time_series: List[Tuple[datetime, float]],
+    width: int = 80,
+    height: int = 20,
+    time_unit: str = "auto",
+) -> str:
+    """Create an ASCII chart of elevation over time (feet)."""
+    if not time_series:
+        return "No elevation data available in the GPX file."
+
+    # Downsample data if we have too many points for the chart width
+    sampled_series = downsample_time_series(time_series, width)
+
+    # Extract elevation values and calculate time offsets
+    start_time = sampled_series[0][0]
+    elevation_values: List[float] = []
+    time_labels: List[float] = []
+
+    for timestamp, elevation in sampled_series:
+        elevation_values.append(elevation)
+        elapsed_seconds = (timestamp - start_time).total_seconds()
+        time_labels.append(elapsed_seconds)
+
+    # Determine time unit for display
+    max_elapsed = max(time_labels) if time_labels else 0
+    if time_unit == "auto":
+        _ = "minutes" if max_elapsed > TIME_UNIT_THRESHOLD_SECONDS else "seconds"
+    else:
+        _ = time_unit
+
+    # Create the chart
+    chart_config = {
+        "height": height,
+        "format": "{:8.0f} ",  # Format as integer (whole feet)
+    }
+
+    chart: str = asciichart.plot(elevation_values, chart_config)  # type: ignore[arg-type]
+
+    # Add title and summary statistics
+    title = "Elevation (feet) over Time"
+    max_elevation = max(elevation_values)
+    min_elevation = min(elevation_values)
+    elevation_gain = calculate_total_elevation_gain(sampled_series)
+    elevation_loss = calculate_total_elevation_loss(sampled_series)
+    duration_str = format_time(max_elapsed)
+
+    summary = (
+        f"Duration: {duration_str}, "
+        f"Max: {max_elevation:.0f} ft, "
+        f"Min: {min_elevation:.0f} ft, "
+        f"Gain: {elevation_gain:.0f} ft, "
+        f"Loss: {elevation_loss:.0f} ft"
+    )
+
+    return f"{title}\n\n{chart}\n\n{summary}"
+
+
+def calculate_total_elevation_gain(time_series: List[Tuple[datetime, float]]) -> float:
+    """Calculate total elevation gain from time series data."""
+    if len(time_series) < 2:
+        return 0.0
+
+    total_gain = 0.0
+    for i in range(1, len(time_series)):
+        elevation_diff = time_series[i][1] - time_series[i - 1][1]
+        if elevation_diff > 0:
+            total_gain += elevation_diff
+
+    return total_gain
+
+
+def calculate_total_elevation_loss(time_series: List[Tuple[datetime, float]]) -> float:
+    """Calculate total elevation loss from time series data."""
+    if len(time_series) < 2:
+        return 0.0
+
+    total_loss = 0.0
+    for i in range(1, len(time_series)):
+        elevation_diff = time_series[i][1] - time_series[i - 1][1]
+        if elevation_diff < 0:
+            total_loss += abs(elevation_diff)
+
+    return total_loss
+
+
+def validate_elevation_data(
+    time_series: List[Tuple[datetime, float]],
+) -> Optional[str]:
+    """Validate elevation data and return error message if invalid."""
+    if not time_series:
+        return "No elevation data found in GPX file"
+
+    if len(time_series) < 2:
+        return "Insufficient elevation data points for visualization"
+
+    # Check for reasonable elevation values (Death Valley to Everest in feet)
+    elevation_values = [elev for _, elev in time_series]
+    max_elev = max(elevation_values)
+    min_elev = min(elevation_values)
+
+    if min_elev < MIN_ELEVATION_FEET or max_elev > MAX_ELEVATION_FEET:
+        return "Elevation data appears to be invalid (outside reasonable range)"
 
     return None
