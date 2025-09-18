@@ -8,16 +8,16 @@ help:
 	@echo "  typecheck - Run pyright type checking"
 
 install:
-	poetry install
+	uv sync --dev
 
 lint:
-	poetry run ruff check .
+	uv run ruff check .
 
 format:
-	poetry run ruff format .
+	uv run ruff format .
 
 typecheck:
-	poetry run pyright
+	uv run pyright
 
 test:
-	poetry run pytest
+	uv run pytest

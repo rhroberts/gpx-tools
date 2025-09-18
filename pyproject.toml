@@ -8,31 +8,29 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "gpxpy (>=1.6.2,<2.0.0)",
-    "click (>=8.0.0,<9.0.0)",
-    "lxml (>=6.0.1,<7.0.0)",
-    "asciichartpy (>=1.5.25,<2.0.0)"
+    "gpxpy>=1.6.2",
+    "click>=8.0.0",
+    "lxml>=6.0.1",
+    "asciichartpy>=1.5.25"
 ]
 
 [project.scripts]
 gpx-tools = "gpx_tools.cli:main"
 
-[project.optional-dependencies]
-test = ["pytest>=8.4.2"]
 
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "ruff (>=0.13.0,<0.14.0)",
-    "pyright (>=1.1.405,<2.0.0)",
-    "pytest (>=8.4.2,<9.0.0)",
-    "pytest-cov (>=7.0.0,<8.0.0)",
-    "types-lxml (>=2025.8.25,<2026.0.0)",
-    "pytest-stub (>=1.1.0,<2.0.0)"
+    "ruff>=0.13.0",
+    "pyright>=1.1.405",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "types-lxml>=2025.8.25",
+    "pytest-stub>=1.1.0"
 ]
 
 [tool.pyright]
