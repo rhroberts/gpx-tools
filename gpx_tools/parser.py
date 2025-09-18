@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Tuple
 
 import gpxpy
 import gpxpy.gpx
@@ -23,24 +23,24 @@ from .constants import (
 @dataclass
 class GPXStats:
     total_distance: float
-    total_time: Optional[float]
-    max_speed: Optional[float]
-    avg_speed: Optional[float]
-    max_elevation: Optional[float]
-    min_elevation: Optional[float]
-    total_uphill: Optional[float]
-    total_downhill: Optional[float]
-    start_time: Optional[datetime]
-    end_time: Optional[datetime]
-    avg_heart_rate: Optional[float]
-    max_heart_rate: Optional[float]
-    activity_type: Optional[str]
+    total_time: float | None
+    max_speed: float | None
+    avg_speed: float | None
+    max_elevation: float | None
+    min_elevation: float | None
+    total_uphill: float | None
+    total_downhill: float | None
+    start_time: datetime | None
+    end_time: datetime | None
+    avg_heart_rate: float | None
+    max_heart_rate: float | None
+    activity_type: str | None
 
 
 class GPXParser:
     def __init__(self, file_path: str | Path):
         self.file_path = Path(file_path)
-        self.gpx: Optional[gpxpy.gpx.GPX] = None
+        self.gpx: gpxpy.gpx.GPX | None = None
 
     def parse(self):
         with open(self.file_path, "r") as gpx_file:
@@ -108,7 +108,7 @@ class GPXParser:
 
         return stats
 
-    def extract_activity_type(self) -> Optional[str]:
+    def extract_activity_type(self) -> str | None:
         """Extract activity type from GPX metadata."""
         if not self.gpx:
             return None
@@ -126,9 +126,7 @@ class GPXParser:
 
         return None
 
-    def calculate_max_speed(
-        self, segment: gpxpy.gpx.GPXTrackSegment
-    ) -> Optional[float]:
+    def calculate_max_speed(self, segment: gpxpy.gpx.GPXTrackSegment) -> float | None:
         """Calculate max speed from raw GPS data without filtering outliers."""
         max_speed = None
 
@@ -166,7 +164,7 @@ class GPXParser:
 
         return heart_rates
 
-    def _calculate_average_heart_rate(self) -> Optional[float]:
+    def _calculate_average_heart_rate(self) -> float | None:
         """Calculate average heart rate from GPX data."""
         heart_rates = self.extract_heart_rate_data()
 
@@ -175,7 +173,7 @@ class GPXParser:
 
         return sum(heart_rates) / len(heart_rates)
 
-    def _calculate_max_heart_rate(self) -> Optional[float]:
+    def _calculate_max_heart_rate(self) -> float | None:
         """Calculate maximum heart rate from GPX data."""
         heart_rates = self.extract_heart_rate_data()
 
@@ -184,7 +182,7 @@ class GPXParser:
 
         return max(heart_rates)
 
-    def _extract_heart_rate_from_extension(self, extension: Any) -> Optional[float]:
+    def _extract_heart_rate_from_extension(self, extension: Any) -> float | None:
         """Extract heart rate value from an extension."""
         try:
             # Check if it's an XML element with children (like Garmin TrackPointExtension)

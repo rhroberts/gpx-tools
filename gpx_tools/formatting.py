@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 from pathlib import Path
 from .conversion import (
     meters_to_feet,
@@ -44,7 +44,7 @@ def format_elevation(elevation_meters: float) -> str:
     return f"{feet:.0f} ft"
 
 
-def format_datetime(dt: Optional[datetime]) -> Optional[str]:
+def format_datetime(dt: datetime | None) -> str | None:
     """Format datetime in LA timezone with 12-hour format and timezone abbreviation."""
     if dt is None:
         return None
@@ -67,7 +67,7 @@ def format_pace(pace_minutes_per_mile: float) -> str:
     return f"{minutes}:{seconds:02d} min/mi"
 
 
-def format_activity_type(activity_type: Optional[str]) -> str:
+def format_activity_type(activity_type: str | None) -> str:
     """Format activity type with proper capitalization."""
     if not activity_type:
         return "Unknown"

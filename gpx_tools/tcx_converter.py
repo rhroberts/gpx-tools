@@ -1,6 +1,6 @@
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 import gpxpy
 from lxml import etree
 
@@ -109,7 +109,7 @@ def convert_gpx_to_tcx(input_file: Path, output_file: Path) -> None:
     )
 
 
-def map_activity_type(gpx_type: Optional[str]) -> str:
+def map_activity_type(gpx_type: str | None) -> str:
     """Map GPX activity type to TCX sport type."""
     if not gpx_type:
         return "Biking"
@@ -129,7 +129,7 @@ def map_activity_type(gpx_type: Optional[str]) -> str:
         return "Biking"  # Default to biking
 
 
-def _get_activity_start_time(track: Any) -> Optional[datetime]:
+def _get_activity_start_time(track: Any) -> datetime | None:
     """Get the start time of a track."""
     for segment in track.segments:
         if segment.points and segment.points[0].time:
@@ -239,7 +239,7 @@ def _add_lap_elements(lap_elem: Element, stats: dict[str, Any], tcx_ns: str) -> 
     trigger_elem.text = "Manual"
 
 
-def extract_heart_rate_from_point(point: Any) -> Optional[float]:
+def extract_heart_rate_from_point(point: Any) -> float | None:
     """Extract heart rate from a GPX point's extensions."""
     if not point.extensions:
         return None

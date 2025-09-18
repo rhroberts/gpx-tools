@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import asciichartpy as asciichart  # type: ignore[import-untyped]
 
@@ -94,7 +94,7 @@ def create_heart_rate_chart(
 
 def validate_heart_rate_data(
     time_series: List[Tuple[datetime, float]],
-) -> Optional[str]:
+) -> str | None:
     """Validate heart rate data and return error message if invalid."""
     if not time_series:
         return "No heart rate data found in GPX file"
@@ -199,7 +199,7 @@ def create_pace_chart(
 
 def validate_pace_data(
     time_series: List[Tuple[datetime, float]],
-) -> Optional[str]:
+) -> str | None:
     """Validate pace data and return error message if invalid."""
     if not time_series:
         return "No pace data found in GPX file"
@@ -275,7 +275,7 @@ def create_speed_chart(
 
 def validate_speed_data(
     time_series: List[Tuple[datetime, float]],
-) -> Optional[str]:
+) -> str | None:
     """Validate speed data and return error message if invalid."""
     if not time_series:
         return "No speed data found in GPX file"
@@ -373,7 +373,7 @@ def calculate_total_elevation_loss(time_series: List[Tuple[datetime, float]]) ->
 
 def validate_elevation_data(
     time_series: List[Tuple[datetime, float]],
-) -> Optional[str]:
+) -> str | None:
     """Validate elevation data and return error message if invalid."""
     if not time_series:
         return "No elevation data found in GPX file"

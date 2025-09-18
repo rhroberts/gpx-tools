@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 from zoneinfo import ZoneInfo
 from .constants import METERS_TO_FEET, METERS_TO_MILES, MPS_TO_MPH
 
@@ -19,7 +18,7 @@ def mps_to_mph(mps: float) -> float:
     return mps * MPS_TO_MPH
 
 
-def convert_to_la_timezone(dt: Optional[datetime]) -> Optional[datetime]:
+def convert_to_la_timezone(dt: datetime | None) -> datetime | None:
     """Convert datetime to America/Los_Angeles timezone."""
     if dt is None:
         return None
