@@ -99,3 +99,21 @@ class TestGPXParser:
 
         assert isinstance(time_series, list)
         # The no_hr_ride.gpx might have pace data even without heart rate
+
+    def test_get_pace_time_series_with_window(self, simple_parser: GPXParser) -> None:
+        """Test pace extraction with different window sizes."""
+        # Test with small window
+        time_series_small = simple_parser.get_pace_time_series(window_size=3)
+        assert isinstance(time_series_small, list)
+
+        # Test with larger window
+        time_series_large = simple_parser.get_pace_time_series(window_size=7)
+        assert isinstance(time_series_large, list)
+
+        # Larger window should produce smoother (potentially fewer) values
+        # Both should be valid pace data if present
+        for ts in [time_series_small, time_series_large]:
+            for timestamp, pace in ts:
+                assert timestamp is not None
+                assert isinstance(pace, float)
+                assert 2.0 <= pace <= 60.0

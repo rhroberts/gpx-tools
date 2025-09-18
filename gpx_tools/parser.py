@@ -1,17 +1,22 @@
-import gpxpy
-import gpxpy.gpx
-from pathlib import Path
-from typing import Optional, Any, List, Tuple
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Any, List, Optional, Tuple
+
+import gpxpy
+import gpxpy.gpx
+
 from .constants import (
-    MIN_HEART_RATE,
-    MAX_HEART_RATE,
     HEART_RATE_INDICATORS,
-    MIN_SPEED_THRESHOLD_MPS,
+    MAX_HEART_RATE,
+    MAX_PACE_MINUTES_PER_MILE,
     MAX_REASONABLE_SPEED_MPS,
-    MIN_TIME_INTERVAL_SECONDS,
     MAX_TIME_INTERVAL_SECONDS,
+    MIN_HEART_RATE,
+    MIN_PACE_MINUTES_PER_MILE,
+    MIN_SPEED_THRESHOLD_MPS,
+    MIN_TIME_INTERVAL_SECONDS,
+    SECONDS_PER_MINUTE,
 )
 
 
@@ -271,8 +276,17 @@ class GPXParser:
 
         return time_series
 
-    def get_pace_time_series(self) -> List[Tuple[datetime, float]]:
-        """Extract pace data with timestamps as a time series (min/mile)."""
+    def get_pace_time_series(
+        self, window_size: int = 5
+    ) -> List[Tuple[datetime, float]]:
+        """Extract pace data with timestamps as a time series (min/mile).
+
+        Uses a moving window to smooth pace calculations and reduce noise,
+        especially at activity start/end.
+
+        Args:
+            window_size: Number of points to use for pace calculation (default: 5)
+        """
         time_series: List[Tuple[datetime, float]] = []
 
         if not self.gpx:
@@ -283,42 +297,73 @@ class GPXParser:
 
         for track in self.gpx.tracks:
             for segment in track.segments:
-                for i in range(1, len(segment.points)):
-                    prev_point = segment.points[i - 1]
-                    curr_point = segment.points[i]
+                points_with_time = [p for p in segment.points if p.time]
 
-                    if prev_point.time and curr_point.time:
+                if len(points_with_time) < 2:
+                    continue
+
+                # Calculate pace using a moving window
+                for i in range(len(points_with_time)):
+                    # Define window boundaries
+                    start_idx = max(0, i - window_size // 2)
+                    end_idx = min(len(points_with_time), i + window_size // 2 + 1)
+
+                    # Need at least 2 points for calculation
+                    if end_idx - start_idx < 2:
+                        continue
+
+                    # Calculate total distance and time over the window
+                    total_distance_meters = 0.0
+                    total_time_seconds = 0.0
+
+                    for j in range(start_idx + 1, end_idx):
+                        prev_point = points_with_time[j - 1]
+                        curr_point = points_with_time[j]
+
+                        # Skip if times are None (should not happen after filtering)
+                        if not prev_point.time or not curr_point.time:
+                            continue
+
+                        dist = curr_point.distance_2d(prev_point) or 0
                         time_diff = (curr_point.time - prev_point.time).total_seconds()
+
+                        # Only include valid segments
                         if (
                             MIN_TIME_INTERVAL_SECONDS
                             <= time_diff
                             <= MAX_TIME_INTERVAL_SECONDS
+                            and dist > 0
                         ):
-                            distance_meters = curr_point.distance_2d(prev_point) or 0
+                            total_distance_meters += dist
+                            total_time_seconds += time_diff
 
-                            if distance_meters > 0:
-                                speed_mps = distance_meters / time_diff
+                    # Calculate average pace over the window
+                    if total_distance_meters > 0 and total_time_seconds > 0:
+                        speed_mps = total_distance_meters / total_time_seconds
 
-                                if (
-                                    MIN_SPEED_THRESHOLD_MPS
-                                    <= speed_mps
-                                    <= MAX_REASONABLE_SPEED_MPS
-                                ):
-                                    from .conversion import meters_to_miles
+                        if (
+                            MIN_SPEED_THRESHOLD_MPS
+                            <= speed_mps
+                            <= MAX_REASONABLE_SPEED_MPS
+                        ):
+                            from .conversion import meters_to_miles
 
-                                    distance_miles = meters_to_miles(distance_meters)
+                            distance_miles = meters_to_miles(total_distance_meters)
+                            pace_seconds_per_mile = total_time_seconds / distance_miles
+                            pace_minutes_per_mile = (
+                                pace_seconds_per_mile / SECONDS_PER_MINUTE
+                            )
 
-                                    if distance_miles > 0:
-                                        pace_seconds_per_mile = (
-                                            time_diff / distance_miles
-                                        )
-                                        pace_minutes_per_mile = (
-                                            pace_seconds_per_mile / 60.0
-                                        )
-
-                                        if 2.0 <= pace_minutes_per_mile <= 60.0:
-                                            time_series.append(
-                                                (curr_point.time, pace_minutes_per_mile)
-                                            )
+                            if (
+                                MIN_PACE_MINUTES_PER_MILE
+                                <= pace_minutes_per_mile
+                                <= MAX_PACE_MINUTES_PER_MILE
+                            ):
+                                # Current point time should exist (we filtered for it)
+                                point_time = points_with_time[i].time
+                                if point_time:
+                                    time_series.append(
+                                        (point_time, pace_minutes_per_mile)
+                                    )
 
         return time_series
