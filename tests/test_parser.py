@@ -76,3 +76,26 @@ class TestGPXParser:
         max_speed = simple_parser.calculate_max_speed(segment)
         assert max_speed is not None
         assert max_speed > 0
+
+    def test_get_pace_time_series(self, simple_parser: GPXParser) -> None:
+        """Test extraction of pace time series data."""
+        time_series = simple_parser.get_pace_time_series()
+
+        # The simple_ride.gpx file has only 3 points, so we might get 2 pace values
+        # or none if the points are too close/far apart in time
+        assert isinstance(time_series, list)
+
+        # If we have pace data, verify its structure and values
+        if len(time_series) > 0:
+            for timestamp, pace in time_series:
+                assert timestamp is not None
+                assert isinstance(pace, float)
+                # Reasonable pace range (2-60 min/mile)
+                assert 2.0 <= pace <= 60.0
+
+    def test_get_pace_time_series_no_data(self, no_hr_parser: GPXParser) -> None:
+        """Test pace extraction when there might be insufficient data."""
+        time_series = no_hr_parser.get_pace_time_series()
+
+        assert isinstance(time_series, list)
+        # The no_hr_ride.gpx might have pace data even without heart rate

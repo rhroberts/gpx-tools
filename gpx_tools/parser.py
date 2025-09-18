@@ -8,6 +8,7 @@ from .constants import (
     MIN_HEART_RATE,
     MAX_HEART_RATE,
     HEART_RATE_INDICATORS,
+    MIN_SPEED_THRESHOLD_MPS,
     MAX_REASONABLE_SPEED_MPS,
     MIN_TIME_INTERVAL_SECONDS,
     MAX_TIME_INTERVAL_SECONDS,
@@ -267,5 +268,57 @@ class GPXParser:
                             if hr_value is not None:
                                 time_series.append((point.time, hr_value))
                                 break  # Only take first HR value per point
+
+        return time_series
+
+    def get_pace_time_series(self) -> List[Tuple[datetime, float]]:
+        """Extract pace data with timestamps as a time series (min/mile)."""
+        time_series: List[Tuple[datetime, float]] = []
+
+        if not self.gpx:
+            self.parse()
+
+        if not self.gpx:
+            return time_series
+
+        for track in self.gpx.tracks:
+            for segment in track.segments:
+                for i in range(1, len(segment.points)):
+                    prev_point = segment.points[i - 1]
+                    curr_point = segment.points[i]
+
+                    if prev_point.time and curr_point.time:
+                        time_diff = (curr_point.time - prev_point.time).total_seconds()
+                        if (
+                            MIN_TIME_INTERVAL_SECONDS
+                            <= time_diff
+                            <= MAX_TIME_INTERVAL_SECONDS
+                        ):
+                            distance_meters = curr_point.distance_2d(prev_point) or 0
+
+                            if distance_meters > 0:
+                                speed_mps = distance_meters / time_diff
+
+                                if (
+                                    MIN_SPEED_THRESHOLD_MPS
+                                    <= speed_mps
+                                    <= MAX_REASONABLE_SPEED_MPS
+                                ):
+                                    from .conversion import meters_to_miles
+
+                                    distance_miles = meters_to_miles(distance_meters)
+
+                                    if distance_miles > 0:
+                                        pace_seconds_per_mile = (
+                                            time_diff / distance_miles
+                                        )
+                                        pace_minutes_per_mile = (
+                                            pace_seconds_per_mile / 60.0
+                                        )
+
+                                        if 2.0 <= pace_minutes_per_mile <= 60.0:
+                                            time_series.append(
+                                                (curr_point.time, pace_minutes_per_mile)
+                                            )
 
         return time_series

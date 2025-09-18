@@ -105,3 +105,108 @@ def validate_heart_rate_data(
         return "Heart rate data appears to be invalid (outside normal range)"
 
     return None
+
+
+def create_pace_chart(
+    time_series: List[Tuple[datetime, float]],
+    width: int = 80,
+    height: int = 20,
+    time_unit: str = "auto",
+) -> str:
+    """Create an ASCII chart of pace over time (min/mile)."""
+    if not time_series:
+        return "No pace data available in the GPX file."
+
+    # Downsample data if we have too many points for the chart width
+    sampled_series = downsample_time_series(time_series, width)
+
+    # Extract pace values and calculate time offsets
+    start_time = sampled_series[0][0]
+    pace_values: List[float] = []
+    time_labels: List[float] = []
+
+    for timestamp, pace in sampled_series:
+        pace_values.append(pace)
+        elapsed_seconds = (timestamp - start_time).total_seconds()
+        time_labels.append(elapsed_seconds)
+
+    # Find the range of pace values
+    min_pace = min(pace_values)  # Fastest pace (lower number)
+    max_pace = max(pace_values)  # Slowest pace (higher number)
+
+    # To invert the y-axis (lower values higher), we need to negate the values
+    inverted_values = [-pace for pace in pace_values]
+
+    # Determine time unit for display
+    max_elapsed = max(time_labels) if time_labels else 0
+    if time_unit == "auto":
+        _ = "minutes" if max_elapsed > 300 else "seconds"  # 5+ minutes
+    else:
+        _ = time_unit
+
+    # Create the chart with inverted values
+    # Use a custom format that will show the absolute value
+    chart_config = {
+        "height": height,
+        "format": "{:8.1f} ",
+    }
+
+    chart: str = asciichart.plot(inverted_values, chart_config)  # type: ignore[arg-type]
+
+    # Simple approach: just remove the minus signs from the y-axis labels
+    chart_lines = chart.split("\n")
+    fixed_lines: List[str] = []
+
+    for line in chart_lines:
+        # Replace any minus sign that appears before a digit at the start of the line
+        # This preserves alignment by replacing '-' with ' '
+        if line and len(line) > 0:
+            # Check if this line starts with spaces followed by a negative number
+            import re
+
+            # Match leading spaces, optional minus, and a number
+            pattern = r"^(\s*)-(\d+\.?\d*\s+[┤┼])"
+            replacement = r"\1 \2"
+            new_line = re.sub(pattern, replacement, line)
+            fixed_lines.append(new_line)
+        else:
+            fixed_lines.append(line)
+
+    chart = "\n".join(fixed_lines)
+
+    # Add title and summary statistics
+    title = "Pace over Time (min/mile)"
+    avg_pace = sum(pace_values) / len(pace_values)
+    duration_str = format_time(max_elapsed)
+
+    from .formatting import format_pace
+
+    summary = (
+        f"Duration: {duration_str}, "
+        f"Avg Pace: {format_pace(avg_pace)}, "
+        f"Fastest: {format_pace(min_pace)}, "
+        f"Slowest: {format_pace(max_pace)}"
+    )
+
+    return f"{title}\n\n{chart}\n\n{summary}"
+
+
+def validate_pace_data(
+    time_series: List[Tuple[datetime, float]],
+) -> Optional[str]:
+    """Validate pace data and return error message if invalid."""
+    if not time_series:
+        return "No pace data found in GPX file"
+
+    if len(time_series) < 2:
+        return "Insufficient pace data points for visualization"
+
+    # Check for reasonable pace values (2-60 min/mile)
+    pace_values = [pace for _, pace in time_series]
+    max_pace = max(pace_values)
+    min_pace = min(pace_values)
+
+    if max_pace > 60 or min_pace < 2:
+        return "Pace data appears to be invalid (outside normal range)"
+
+    return None

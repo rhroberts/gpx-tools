@@ -60,6 +60,13 @@ def format_heart_rate(heart_rate: float) -> str:
     return f"{heart_rate:.0f} bpm"
 
 
+def format_pace(pace_minutes_per_mile: float) -> str:
+    """Format pace in minutes:seconds per mile."""
+    minutes = int(pace_minutes_per_mile)
+    seconds = int((pace_minutes_per_mile - minutes) * 60)
+    return f"{minutes}:{seconds:02d} min/mi"
+
+
 def format_activity_type(activity_type: Optional[str]) -> str:
     """Format activity type with proper capitalization."""
     if not activity_type:
