@@ -5,6 +5,7 @@ from .parser import GPXParser
 from .formatting import print_gpx_stats
 from .heart_rate import strip_heart_rate_data, replace_heart_rate_data
 from .tcx_converter import convert_gpx_to_tcx
+from .visualization import create_heart_rate_chart, validate_heart_rate_data
 from .constants import DEFAULT_HR_VARIATION
 
 
@@ -88,6 +89,45 @@ def convert_to_tcx(input_file: Path, output_file: Path) -> None:
 
     except Exception as e:
         click.echo(f"Error converting to TCX format: {e}", err=True)
+        sys.exit(1)
+
+
+@main.group()
+def plot() -> None:
+    """Visualization commands for GPX data."""
+    pass
+
+
+@plot.command("heart-rate")
+@click.argument("file", type=click.Path(exists=True, path_type=Path))
+@click.option("--width", default=80, help="Chart width in characters (default: 80)")
+@click.option("--height", default=20, help="Chart height in lines (default: 20)")
+@click.option(
+    "--time-unit",
+    type=click.Choice(["auto", "seconds", "minutes"]),
+    default="auto",
+    help="Time axis unit (default: auto)",
+)
+def plot_heart_rate(file: Path, width: int, height: int, time_unit: str) -> None:
+    """Show heart rate over time as an ASCII graph."""
+    try:
+        parser = GPXParser(file)
+        parser.parse()
+
+        time_series = parser.get_heart_rate_time_series()
+
+        # Validate heart rate data
+        error_msg = validate_heart_rate_data(time_series)
+        if error_msg:
+            click.echo(f"Error: {error_msg}", err=True)
+            sys.exit(1)
+
+        # Create and display chart
+        chart = create_heart_rate_chart(time_series, width, height, time_unit)
+        click.echo(chart)
+
+    except Exception as e:
+        click.echo(f"Error creating heart rate chart: {e}", err=True)
         sys.exit(1)
 
 

@@ -71,7 +71,7 @@ def format_gpx_stats(
     file_path: Path, parser: "GPXParser", stats: "GPXStats"
 ) -> List[str]:
     """Format GPX statistics into a list of display strings."""
-    lines = []
+    lines: List[str] = []
 
     # File information
     lines.append(f"GPX File: {file_path}")

@@ -1,11 +1,11 @@
 import pytest
 import tempfile
 from pathlib import Path
-from lxml import etree  # type: ignore
+from lxml import etree
 from gpx_tools.tcx_converter import (
     convert_gpx_to_tcx,
-    _map_activity_type,
-    _extract_heart_rate_from_point,
+    map_activity_type,
+    extract_heart_rate_from_point,
 )
 from gpx_tools.parser import GPXParser
 
@@ -35,9 +35,9 @@ class TestTcxConverter:
             root = tree.getroot()
 
             # Check namespace
-            assert "TrainingCenterDatabase" in root.tag
-            assert (
-                "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2" in root.tag
+            assert "TrainingCenterDatabase" in str(root.tag)
+            assert "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2" in str(
+                root.tag
             )
 
             # Check for Activities element
@@ -143,12 +143,12 @@ class TestTcxConverter:
             output_path.unlink(missing_ok=True)
 
     def test_map_activity_type(self) -> None:
-        assert _map_activity_type("cycling") == "Biking"
-        assert _map_activity_type("running") == "Running"
-        assert _map_activity_type("walking") == "Other"
-        assert _map_activity_type("hiking") == "Other"
-        assert _map_activity_type(None) == "Biking"
-        assert _map_activity_type("unknown") == "Biking"
+        assert map_activity_type("cycling") == "Biking"
+        assert map_activity_type("running") == "Running"
+        assert map_activity_type("walking") == "Other"
+        assert map_activity_type("hiking") == "Other"
+        assert map_activity_type(None) == "Biking"
+        assert map_activity_type("unknown") == "Biking"
 
     def test_extract_heart_rate_from_point(self, simple_ride_path: Path) -> None:
         # Parse the GPX file to get points with heart rate data
@@ -161,7 +161,7 @@ class TestTcxConverter:
         point = segment.points[0]
 
         # Test heart rate extraction
-        hr_value = _extract_heart_rate_from_point(point)
+        hr_value = extract_heart_rate_from_point(point)
         assert hr_value is not None
         assert isinstance(hr_value, float)
         assert 50 <= hr_value <= 250  # Reasonable heart rate range
@@ -177,7 +177,7 @@ class TestTcxConverter:
         point = segment.points[0]
 
         # Test that no heart rate is extracted
-        hr_value = _extract_heart_rate_from_point(point)
+        hr_value = extract_heart_rate_from_point(point)
         assert hr_value is None
 
     def test_convert_nonexistent_file(self) -> None:

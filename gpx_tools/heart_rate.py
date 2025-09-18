@@ -30,7 +30,7 @@ def _clean_extensions(extensions: List[Any]) -> List[Any]:
     """Remove heart rate data from extensions while preserving other data."""
     import xml.etree.ElementTree as ET
 
-    cleaned_extensions = []
+    cleaned_extensions: List[Any] = []
 
     for extension in extensions:
         if hasattr(extension, "tag") and len(list(extension)) > 0:
@@ -111,7 +111,7 @@ def _replace_hr_in_extensions(
     """Replace heart rate data in extensions with custom values."""
     import xml.etree.ElementTree as ET
 
-    modified_extensions = []
+    modified_extensions: List[Any] = []
 
     for extension in extensions:
         if hasattr(extension, "tag") and len(list(extension)) > 0:

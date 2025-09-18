@@ -1,8 +1,15 @@
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Any
+from typing import Optional, Any, TYPE_CHECKING
 import gpxpy
-from lxml import etree  # type: ignore
+from lxml import etree
+
+if TYPE_CHECKING:
+    # lxml uses _Element internally but marks it as private
+    # This is a known typing issue with lxml
+    Element = Any
+else:
+    Element = etree._Element
 
 
 def convert_gpx_to_tcx(input_file: Path, output_file: Path) -> None:
@@ -24,7 +31,7 @@ def convert_gpx_to_tcx(input_file: Path, output_file: Path) -> None:
         activity = etree.SubElement(activities, "{%s}Activity" % tcx_ns)
 
         # Determine sport type from track type or default to cycling
-        sport_type = _map_activity_type(track.type if hasattr(track, "type") else None)
+        sport_type = map_activity_type(track.type if hasattr(track, "type") else None)
         activity.set("Sport", sport_type)
 
         # Add activity ID (start time of first segment)
@@ -64,7 +71,7 @@ def convert_gpx_to_tcx(input_file: Path, output_file: Path) -> None:
                     time_elem.text = point.time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
                 # Position
-                if point.latitude is not None and point.longitude is not None:
+                if point.latitude and point.longitude:
                     position = etree.SubElement(trackpoint, "{%s}Position" % tcx_ns)
                     lat_elem = etree.SubElement(
                         position, "{%s}LatitudeDegrees" % tcx_ns
@@ -83,7 +90,7 @@ def convert_gpx_to_tcx(input_file: Path, output_file: Path) -> None:
                     alt_elem.text = str(point.elevation)
 
                 # Heart Rate
-                hr_value = _extract_heart_rate_from_point(point)
+                hr_value = extract_heart_rate_from_point(point)
                 if hr_value:
                     hr_elem = etree.SubElement(trackpoint, "{%s}HeartRateBpm" % tcx_ns)
                     value_elem = etree.SubElement(hr_elem, "{%s}Value" % tcx_ns)
@@ -102,7 +109,7 @@ def convert_gpx_to_tcx(input_file: Path, output_file: Path) -> None:
     )
 
 
-def _map_activity_type(gpx_type: Optional[str]) -> str:
+def map_activity_type(gpx_type: Optional[str]) -> str:
     """Map GPX activity type to TCX sport type."""
     if not gpx_type:
         return "Biking"
@@ -156,13 +163,13 @@ def _calculate_lap_stats(segment: Any) -> dict[str, Any]:
         ).total_seconds()
 
     # Calculate heart rate stats
-    heart_rates = []
+    heart_rates: list[float] = []
     prev_point = None
     max_speed = 0.0
 
     for point in segment.points:
         # Heart rate
-        hr_value = _extract_heart_rate_from_point(point)
+        hr_value = extract_heart_rate_from_point(point)
         if hr_value:
             heart_rates.append(hr_value)
 
@@ -183,55 +190,56 @@ def _calculate_lap_stats(segment: Any) -> dict[str, Any]:
     stats["max_speed"] = max_speed
 
     # Estimate calories (very rough approximation)
-    if stats["total_time"] > 0:
-        stats["calories"] = int(stats["total_time"] * 0.1)  # Very rough estimate
+    total_time = stats["total_time"]
+    if isinstance(total_time, (int, float)) and total_time > 0:
+        stats["calories"] = int(total_time * 0.1)  # Very rough estimate
 
     return stats
 
 
-def _add_lap_elements(lap_elem: Any, stats: dict[str, Any], tcx_ns: str) -> None:
+def _add_lap_elements(lap_elem: Element, stats: dict[str, Any], tcx_ns: str) -> None:
     """Add lap statistic elements to the lap element."""
     # Total time
     if stats["total_time"] > 0:
-        time_elem = etree.SubElement(lap_elem, "{%s}TotalTimeSeconds" % tcx_ns)
+        time_elem = etree.SubElement(lap_elem, "{%s}TotalTimeSeconds" % tcx_ns)  # type: ignore[var-annotated]
         time_elem.text = str(stats["total_time"])
 
     # Distance
     if stats["distance"] > 0:
-        dist_elem = etree.SubElement(lap_elem, "{%s}DistanceMeters" % tcx_ns)
+        dist_elem = etree.SubElement(lap_elem, "{%s}DistanceMeters" % tcx_ns)  # type: ignore[var-annotated]
         dist_elem.text = str(stats["distance"])
 
     # Max speed
     if stats["max_speed"] > 0:
-        speed_elem = etree.SubElement(lap_elem, "{%s}MaximumSpeed" % tcx_ns)
+        speed_elem = etree.SubElement(lap_elem, "{%s}MaximumSpeed" % tcx_ns)  # type: ignore[var-annotated]
         speed_elem.text = str(stats["max_speed"])
 
     # Calories
-    calories_elem = etree.SubElement(lap_elem, "{%s}Calories" % tcx_ns)
+    calories_elem = etree.SubElement(lap_elem, "{%s}Calories" % tcx_ns)  # type: ignore[var-annotated]
     calories_elem.text = str(stats["calories"])
 
     # Average heart rate
     if stats["avg_hr"]:
-        avg_hr_elem = etree.SubElement(lap_elem, "{%s}AverageHeartRateBpm" % tcx_ns)
-        value_elem = etree.SubElement(avg_hr_elem, "{%s}Value" % tcx_ns)
+        avg_hr_elem = etree.SubElement(lap_elem, "{%s}AverageHeartRateBpm" % tcx_ns)  # type: ignore[var-annotated]
+        value_elem = etree.SubElement(avg_hr_elem, "{%s}Value" % tcx_ns)  # type: ignore[var-annotated, arg-type]
         value_elem.text = str(int(stats["avg_hr"]))
 
     # Maximum heart rate
     if stats["max_hr"]:
-        max_hr_elem = etree.SubElement(lap_elem, "{%s}MaximumHeartRateBpm" % tcx_ns)
-        value_elem = etree.SubElement(max_hr_elem, "{%s}Value" % tcx_ns)
+        max_hr_elem = etree.SubElement(lap_elem, "{%s}MaximumHeartRateBpm" % tcx_ns)  # type: ignore[var-annotated]
+        value_elem = etree.SubElement(max_hr_elem, "{%s}Value" % tcx_ns)  # type: ignore[var-annotated, arg-type]
         value_elem.text = str(int(stats["max_hr"]))
 
     # Intensity
-    intensity_elem = etree.SubElement(lap_elem, "{%s}Intensity" % tcx_ns)
+    intensity_elem = etree.SubElement(lap_elem, "{%s}Intensity" % tcx_ns)  # type: ignore[var-annotated]
     intensity_elem.text = stats["intensity"]
 
     # Trigger method
-    trigger_elem = etree.SubElement(lap_elem, "{%s}TriggerMethod" % tcx_ns)
+    trigger_elem = etree.SubElement(lap_elem, "{%s}TriggerMethod" % tcx_ns)  # type: ignore[var-annotated]
     trigger_elem.text = "Manual"
 
 
-def _extract_heart_rate_from_point(point: Any) -> Optional[float]:
+def extract_heart_rate_from_point(point: Any) -> Optional[float]:
     """Extract heart rate from a GPX point's extensions."""
     if not point.extensions:
         return None

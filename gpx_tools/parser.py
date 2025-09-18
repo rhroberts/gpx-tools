@@ -1,7 +1,7 @@
 import gpxpy
 import gpxpy.gpx
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, List, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 from .constants import (
@@ -73,7 +73,7 @@ class GPXParser:
                 moving_data = segment.get_moving_data()
                 if moving_data:
                     stats.total_time = moving_data.moving_time
-                segment_max_speed = self._calculate_max_speed(segment)
+                segment_max_speed = self.calculate_max_speed(segment)
                 if segment_max_speed is not None:
                     if stats.max_speed is None or segment_max_speed > stats.max_speed:
                         stats.max_speed = segment_max_speed
@@ -98,11 +98,11 @@ class GPXParser:
 
         stats.avg_heart_rate = self._calculate_average_heart_rate()
         stats.max_heart_rate = self._calculate_max_heart_rate()
-        stats.activity_type = self._extract_activity_type()
+        stats.activity_type = self.extract_activity_type()
 
         return stats
 
-    def _extract_activity_type(self) -> Optional[str]:
+    def extract_activity_type(self) -> Optional[str]:
         """Extract activity type from GPX metadata."""
         if not self.gpx:
             return None
@@ -120,7 +120,7 @@ class GPXParser:
 
         return None
 
-    def _calculate_max_speed(
+    def calculate_max_speed(
         self, segment: gpxpy.gpx.GPXTrackSegment
     ) -> Optional[float]:
         """Calculate max speed from raw GPS data without filtering outliers."""
@@ -142,9 +142,9 @@ class GPXParser:
 
         return max_speed
 
-    def _extract_heart_rate_data(self) -> list[float]:
+    def extract_heart_rate_data(self) -> List[float]:
         """Extract all heart rate values from the GPX data."""
-        heart_rates = []
+        heart_rates: List[float] = []
 
         if not self.gpx:
             return heart_rates
@@ -162,7 +162,7 @@ class GPXParser:
 
     def _calculate_average_heart_rate(self) -> Optional[float]:
         """Calculate average heart rate from GPX data."""
-        heart_rates = self._extract_heart_rate_data()
+        heart_rates = self.extract_heart_rate_data()
 
         if not heart_rates:
             return None
@@ -171,7 +171,7 @@ class GPXParser:
 
     def _calculate_max_heart_rate(self) -> Optional[float]:
         """Calculate maximum heart rate from GPX data."""
-        heart_rates = self._extract_heart_rate_data()
+        heart_rates = self.extract_heart_rate_data()
 
         if not heart_rates:
             return None
@@ -247,3 +247,25 @@ class GPXParser:
         if not self.gpx:
             self.parse()
         return len(self.gpx.waypoints) if self.gpx else 0
+
+    def get_heart_rate_time_series(self) -> List[Tuple[datetime, float]]:
+        """Extract heart rate data with timestamps as a time series."""
+        time_series: List[Tuple[datetime, float]] = []
+
+        if not self.gpx:
+            self.parse()
+
+        if not self.gpx:
+            return time_series
+
+        for track in self.gpx.tracks:
+            for segment in track.segments:
+                for point in segment.points:
+                    if point.time and point.extensions:
+                        for ext in point.extensions:
+                            hr_value = self._extract_heart_rate_from_extension(ext)
+                            if hr_value is not None:
+                                time_series.append((point.time, hr_value))
+                                break  # Only take first HR value per point
+
+        return time_series
