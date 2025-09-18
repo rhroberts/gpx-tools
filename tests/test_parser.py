@@ -117,3 +117,34 @@ class TestGPXParser:
                 assert timestamp is not None
                 assert isinstance(pace, float)
                 assert 2.0 <= pace <= 60.0
+
+    def test_get_speed_time_series(self, simple_parser: GPXParser) -> None:
+        """Test extraction of speed time series data."""
+        time_series = simple_parser.get_speed_time_series()
+
+        assert isinstance(time_series, list)
+
+        # If we have speed data, verify its structure and values
+        if len(time_series) > 0:
+            for timestamp, speed in time_series:
+                assert timestamp is not None
+                assert isinstance(speed, float)
+                # Reasonable speed range (0-200 mph)
+                assert 0 <= speed <= 200
+
+    def test_get_speed_time_series_with_window(self, simple_parser: GPXParser) -> None:
+        """Test speed extraction with different window sizes."""
+        # Test with small window
+        time_series_small = simple_parser.get_speed_time_series(window_size=3)
+        assert isinstance(time_series_small, list)
+
+        # Test with larger window
+        time_series_large = simple_parser.get_speed_time_series(window_size=7)
+        assert isinstance(time_series_large, list)
+
+        # Both should be valid speed data if present
+        for ts in [time_series_small, time_series_large]:
+            for timestamp, speed in ts:
+                assert timestamp is not None
+                assert isinstance(speed, float)
+                assert 0 <= speed <= 200

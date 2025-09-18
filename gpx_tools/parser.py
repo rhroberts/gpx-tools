@@ -367,3 +367,83 @@ class GPXParser:
                                     )
 
         return time_series
+
+    def get_speed_time_series(
+        self, window_size: int = 5
+    ) -> List[Tuple[datetime, float]]:
+        """Extract speed data with timestamps as a time series (mph).
+
+        Uses a moving window to smooth speed calculations and reduce noise.
+
+        Args:
+            window_size: Number of points to use for speed calculation (default: 5)
+        """
+        time_series: List[Tuple[datetime, float]] = []
+
+        if not self.gpx:
+            self.parse()
+
+        if not self.gpx:
+            return time_series
+
+        for track in self.gpx.tracks:
+            for segment in track.segments:
+                points_with_time = [p for p in segment.points if p.time]
+
+                if len(points_with_time) < 2:
+                    continue
+
+                # Calculate speed using a moving window
+                for i in range(len(points_with_time)):
+                    # Define window boundaries
+                    start_idx = max(0, i - window_size // 2)
+                    end_idx = min(len(points_with_time), i + window_size // 2 + 1)
+
+                    # Need at least 2 points for calculation
+                    if end_idx - start_idx < 2:
+                        continue
+
+                    # Calculate total distance and time over the window
+                    total_distance_meters = 0.0
+                    total_time_seconds = 0.0
+
+                    for j in range(start_idx + 1, end_idx):
+                        prev_point = points_with_time[j - 1]
+                        curr_point = points_with_time[j]
+
+                        # Skip if times are None (should not happen after filtering)
+                        if not prev_point.time or not curr_point.time:
+                            continue
+
+                        dist = curr_point.distance_2d(prev_point) or 0
+                        time_diff = (curr_point.time - prev_point.time).total_seconds()
+
+                        # Only include valid segments
+                        if (
+                            MIN_TIME_INTERVAL_SECONDS
+                            <= time_diff
+                            <= MAX_TIME_INTERVAL_SECONDS
+                            and dist > 0
+                        ):
+                            total_distance_meters += dist
+                            total_time_seconds += time_diff
+
+                    # Calculate average speed over the window
+                    if total_distance_meters > 0 and total_time_seconds > 0:
+                        speed_mps = total_distance_meters / total_time_seconds
+
+                        if (
+                            MIN_SPEED_THRESHOLD_MPS
+                            <= speed_mps
+                            <= MAX_REASONABLE_SPEED_MPS
+                        ):
+                            from .conversion import mps_to_mph
+
+                            speed_mph = mps_to_mph(speed_mps)
+
+                            # Current point time should exist (we filtered for it)
+                            point_time = points_with_time[i].time
+                            if point_time:
+                                time_series.append((point_time, speed_mph))
+
+        return time_series

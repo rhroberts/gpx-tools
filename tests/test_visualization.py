@@ -36,7 +36,7 @@ class TestVisualization:
         """Test basic heart rate chart creation."""
         chart = create_heart_rate_chart(sample_time_series)
 
-        assert "Heart Rate over Time" in chart
+        assert "Heart Rate (BPM) over Time" in chart
         assert "Duration:" in chart
         assert "Avg HR:" in chart
         assert "Max HR:" in chart
@@ -49,7 +49,7 @@ class TestVisualization:
         """Test chart creation with custom width and height."""
         chart = create_heart_rate_chart(sample_time_series, width=60, height=15)
 
-        assert "Heart Rate over Time" in chart
+        assert "Heart Rate (BPM) over Time" in chart
         # Chart should be generated without errors
 
     def test_create_heart_rate_chart_time_units(
@@ -59,13 +59,13 @@ class TestVisualization:
         # Since we simplified the chart to not show time axis labels,
         # just test that different time units don't break the chart generation
         chart_auto = create_heart_rate_chart(sample_time_series, time_unit="auto")
-        assert "Heart Rate over Time" in chart_auto
+        assert "Heart Rate (BPM) over Time" in chart_auto
 
         chart_seconds = create_heart_rate_chart(sample_time_series, time_unit="seconds")
-        assert "Heart Rate over Time" in chart_seconds
+        assert "Heart Rate (BPM) over Time" in chart_seconds
 
         chart_minutes = create_heart_rate_chart(sample_time_series, time_unit="minutes")
-        assert "Heart Rate over Time" in chart_minutes
+        assert "Heart Rate (BPM) over Time" in chart_minutes
 
     def test_create_heart_rate_chart_empty_data(self):
         """Test chart creation with empty data."""
@@ -84,7 +84,7 @@ class TestVisualization:
             time_series.append((timestamp, float(hr)))
 
         chart = create_heart_rate_chart(time_series, time_unit="auto")
-        assert "Heart Rate over Time" in chart
+        assert "Heart Rate (BPM) over Time" in chart
         assert "Duration: 19:00" in chart  # Should show the correct duration
 
     def test_validate_heart_rate_data_valid(
@@ -130,7 +130,7 @@ class TestVisualization:
 
         # Should be able to create chart without errors
         chart = create_heart_rate_chart(time_series)
-        assert "Heart Rate over Time" in chart
+        assert "Heart Rate (BPM) over Time" in chart
         assert "bpm" in chart
 
     def test_heart_rate_statistics_accuracy(
@@ -194,6 +194,71 @@ class TestVisualization:
 
         # Should not crash and should produce reasonable output
         chart = create_heart_rate_chart(time_series, width=80, height=20)
-        assert "Heart Rate over Time" in chart
+        assert "Heart Rate (BPM) over Time" in chart
         assert "Duration:" in chart
         assert "bpm" in chart
+
+
+class TestSpeedVisualization:
+    def test_create_speed_chart_basic(self) -> None:
+        """Test basic speed chart creation."""
+        from gpx_tools.visualization import create_speed_chart
+
+        start_time = datetime(2024, 1, 1, 10, 0, 0)
+        time_series = [
+            (start_time, 12.0),
+            (start_time + timedelta(seconds=60), 13.5),
+            (start_time + timedelta(seconds=120), 14.0),
+            (start_time + timedelta(seconds=180), 13.0),
+        ]
+
+        chart = create_speed_chart(time_series, width=40, height=10)
+
+        assert "Speed (mph) over Time" in chart
+        assert "mph" in chart
+        assert "Duration:" in chart
+        assert "Avg Speed:" in chart
+        assert "Max:" in chart
+        assert "Min:" in chart
+
+    def test_validate_speed_data(self) -> None:
+        """Test speed data validation."""
+        from gpx_tools.visualization import validate_speed_data
+
+        # Empty data
+        assert validate_speed_data([]) == "No speed data found in GPX file"
+
+        # Insufficient data
+        single_point = [(datetime.now(), 10.0)]
+        assert (
+            validate_speed_data(single_point)
+            == "Insufficient speed data points for visualization"
+        )
+
+        # Valid data
+        valid_series = [
+            (datetime.now(), 10.0),
+            (datetime.now() + timedelta(seconds=60), 12.0),
+        ]
+        assert validate_speed_data(valid_series) is None
+
+    def test_speed_chart_with_large_dataset(self) -> None:
+        """Test speed chart with many data points."""
+        from gpx_tools.visualization import create_speed_chart
+        from typing import List, Tuple
+
+        start_time = datetime.now()
+        time_series: List[Tuple[datetime, float]] = []
+
+        # Generate 500 data points
+        for i in range(500):
+            timestamp = start_time + timedelta(seconds=i)
+            # Create some realistic speed variation
+            speed = 12.0 + 3.0 * (0.5 + 0.3 * (i % 30) / 30)  # Varies between 12-15 mph
+            time_series.append((timestamp, speed))
+
+        # Should downsample and produce reasonable output
+        chart = create_speed_chart(time_series, width=80, height=20)
+        assert "Speed (mph) over Time" in chart
+        assert "Duration:" in chart
+        assert "mph" in chart

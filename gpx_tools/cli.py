@@ -1,17 +1,21 @@
-import click
 import sys
 from pathlib import Path
-from .parser import GPXParser
+
+import click
+
+from .constants import DEFAULT_HR_VARIATION
 from .formatting import print_gpx_stats
-from .heart_rate import strip_heart_rate_data, replace_heart_rate_data
+from .heart_rate import replace_heart_rate_data, strip_heart_rate_data
+from .parser import GPXParser
 from .tcx_converter import convert_gpx_to_tcx
 from .visualization import (
     create_heart_rate_chart,
-    validate_heart_rate_data,
     create_pace_chart,
+    create_speed_chart,
+    validate_heart_rate_data,
     validate_pace_data,
+    validate_speed_data,
 )
-from .constants import DEFAULT_HR_VARIATION
 
 
 @click.group()
@@ -114,7 +118,7 @@ def plot() -> None:
     help="Time axis unit (default: auto)",
 )
 def plot_heart_rate(file: Path, width: int, height: int, time_unit: str) -> None:
-    """Show heart rate over time as an ASCII graph."""
+    """Show heart rate (BPM) over time as an ASCII graph."""
     try:
         parser = GPXParser(file)
         parser.parse()
@@ -166,6 +170,39 @@ def plot_pace(file: Path, width: int, height: int, time_unit: str) -> None:
 
     except Exception as e:
         click.echo(f"Error creating pace chart: {e}", err=True)
+        sys.exit(1)
+
+
+@plot.command("speed")
+@click.argument("file", type=click.Path(exists=True, path_type=Path))
+@click.option("--width", default=80, help="Chart width in characters (default: 80)")
+@click.option("--height", default=20, help="Chart height in lines (default: 20)")
+@click.option(
+    "--time-unit",
+    type=click.Choice(["auto", "seconds", "minutes"]),
+    default="auto",
+    help="Time axis unit (default: auto)",
+)
+def plot_speed(file: Path, width: int, height: int, time_unit: str) -> None:
+    """Show speed (mph) over time as an ASCII graph."""
+    try:
+        parser = GPXParser(file)
+        parser.parse()
+
+        time_series = parser.get_speed_time_series()
+
+        # Validate speed data
+        error_msg = validate_speed_data(time_series)
+        if error_msg:
+            click.echo(f"Error: {error_msg}", err=True)
+            sys.exit(1)
+
+        # Create and display chart
+        chart = create_speed_chart(time_series, width, height, time_unit)
+        click.echo(chart)
+
+    except Exception as e:
+        click.echo(f"Error creating speed chart: {e}", err=True)
         sys.exit(1)
 
 

@@ -149,7 +149,7 @@ class TestCLI:
         result = runner.invoke(main, ["plot", "heart-rate", str(simple_ride_path)])
 
         assert result.exit_code == 0
-        assert "Heart Rate over Time" in result.output
+        assert "Heart Rate (BPM) over Time" in result.output
         assert "bpm" in result.output
         assert "Avg HR:" in result.output
         assert "Max HR:" in result.output
@@ -161,7 +161,7 @@ class TestCLI:
         # Pace data might not be available for all GPX files, so check exit code
         # If there's valid pace data, check the output
         if result.exit_code == 0:
-            assert "Pace over Time (min/mile)" in result.output
+            assert "Pace (min/mile) over Time" in result.output
             assert "min/mi" in result.output
             assert "Avg Pace:" in result.output
             assert "Fastest:" in result.output
@@ -180,7 +180,7 @@ class TestCLI:
 
         # If command succeeds, check it respects the options
         if result.exit_code == 0:
-            assert "Pace over Time (min/mile)" in result.output
+            assert "Pace (min/mile) over Time" in result.output
 
     def test_plot_group_help(self, runner: CliRunner) -> None:
         result = runner.invoke(main, ["plot", "--help"])

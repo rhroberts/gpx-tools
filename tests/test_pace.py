@@ -44,7 +44,7 @@ class TestPace:
         """Test basic pace chart creation."""
         chart = create_pace_chart(sample_pace_time_series)
 
-        assert "Pace over Time (min/mile)" in chart
+        assert "Pace (min/mile) over Time" in chart
         assert "Duration:" in chart
         assert "Avg Pace:" in chart
         assert "Fastest:" in chart
@@ -57,20 +57,20 @@ class TestPace:
         """Test chart creation with custom width and height."""
         chart = create_pace_chart(sample_pace_time_series, width=60, height=15)
 
-        assert "Pace over Time (min/mile)" in chart
+        assert "Pace (min/mile) over Time" in chart
 
     def test_create_pace_chart_time_units(
         self, sample_pace_time_series: List[Tuple[datetime, float]]
     ):
         """Test chart creation with different time units."""
         chart_auto = create_pace_chart(sample_pace_time_series, time_unit="auto")
-        assert "Pace over Time (min/mile)" in chart_auto
+        assert "Pace (min/mile) over Time" in chart_auto
 
         chart_seconds = create_pace_chart(sample_pace_time_series, time_unit="seconds")
-        assert "Pace over Time (min/mile)" in chart_seconds
+        assert "Pace (min/mile) over Time" in chart_seconds
 
         chart_minutes = create_pace_chart(sample_pace_time_series, time_unit="minutes")
-        assert "Pace over Time (min/mile)" in chart_minutes
+        assert "Pace (min/mile) over Time" in chart_minutes
 
     def test_create_pace_chart_empty_data(self):
         """Test chart creation with empty data."""
@@ -89,7 +89,7 @@ class TestPace:
             time_series.append((timestamp, float(pace)))
 
         chart = create_pace_chart(time_series, time_unit="auto")
-        assert "Pace over Time (min/mile)" in chart
+        assert "Pace (min/mile) over Time" in chart
         assert "Duration: 19:00" in chart
 
     def test_validate_pace_data_valid(
@@ -157,7 +157,7 @@ class TestPace:
         if len(time_series) > 0:
             # Should be able to create chart without errors
             chart = create_pace_chart(time_series)
-            assert "Pace over Time (min/mile)" in chart
+            assert "Pace (min/mile) over Time" in chart
             assert "min/mi" in chart
 
     def test_large_dataset_pace_chart_creation(self):
@@ -173,6 +173,6 @@ class TestPace:
 
         # Should not crash and should produce reasonable output
         chart = create_pace_chart(time_series, width=80, height=20)
-        assert "Pace over Time (min/mile)" in chart
+        assert "Pace (min/mile) over Time" in chart
         assert "Duration:" in chart
         assert "min/mi" in chart
